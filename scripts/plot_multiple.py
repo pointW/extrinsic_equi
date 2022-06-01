@@ -291,7 +291,7 @@ def plotStepRewardCurve(base, step=50000, use_default_cm=False, freq=1000):
         'sac+aux+ban0': 'SAC + aux loss',
 
         'sac': 'SAC',
-        'sacfd': 'SACAux',
+        'sacfd': 'SACfD',
 
         'sac+crop rad': 'SAC + crop RAD'
     }
@@ -659,7 +659,7 @@ def plotLoss(base, step):
 
 
 if __name__ == '__main__':
-    base = '/media/dian/hdd/mrun_results/close_loop_1p/RSS/rad rot/push'
+    base = '/media/dian/hdd/mrun_results/close_loop_1p/CoRL22/aux/push'
     # plotLearningCurve(base, 1000, window=20)
     # plotSuccessRate(base, 1000, window=20)
     # plotEvalCurve(base, 5000, freq=200)
