@@ -30,6 +30,10 @@ from networks.curl_sac_net import CURLSACEncoder, CURLSACCritic, CURLSACGaussian
 from networks.curl_equi_sac_net import CURLEquiSACEncoder, CURLEquiSACCritic, CURLEquiSACGaussianPolicy
 from networks.cnn import DQNComCURL, DQNComCURLOri
 
+from agents.sac_reg import SACReg
+from agents.sac_share_enc import SACShareEnc
+from networks.equivariant_dynamic_model import EquivariantRewardModelDihedral, EquivariantTransitionModelDihedral
+
 def createAgent(test=False):
     print('initializing agent')
     obs_channel = 2
@@ -237,6 +241,39 @@ def createAgent(test=False):
         else:
             raise NotImplementedError
         agent.initNetwork(actor, critic, not test)
+
+    elif alg in ['sac_reg']:
+        sac_lr = (actor_lr, critic_lr)
+        if alg == 'sac_reg':
+            agent = SACReg(lr=sac_lr, gamma=gamma, device=device, dx=dpos, dy=dpos, dz=dpos, dr=drot,
+                           n_a=len(action_sequence), tau=tau, alpha=init_temp, policy_type='gaussian',
+                           target_update_interval=1, automatic_entropy_tuning=True, obs_type=obs_type)
+
+            enc = EquivariantEncoder128Dihedral(obs_channel, n_hidden, initialize, equi_n).to(device)
+            actor = EquivariantSACActorDihedralShareEnc(enc, (obs_channel, crop_size, crop_size), len(action_sequence),
+                                                        n_hidden=n_hidden, initialize=initialize, N=equi_n,
+                                                        kernel_size=3).to(device)
+            critic = EquivariantSACCriticDihedralShareEnc(enc, (obs_channel, crop_size, crop_size),
+                                                          len(action_sequence), n_hidden=n_hidden,
+                                                          initialize=initialize, N=equi_n, kernel_size=3).to(device)
+            reward_model = EquivariantRewardModelDihedral(n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
+            transition_model = EquivariantTransitionModelDihedral(n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
+            agent.initNetwork(actor, critic, reward_model, transition_model)
+
+    elif alg in ['sac_share_enc']:
+        sac_lr = (actor_lr, critic_lr)
+        if alg == 'sac_share_enc':
+            agent = SACShareEnc(lr=sac_lr, gamma=gamma, device=device, dx=dpos, dy=dpos, dz=dpos, dr=drot,
+                                n_a=len(action_sequence), tau=tau, alpha=init_temp, policy_type='gaussian',
+                                target_update_interval=1, automatic_entropy_tuning=True, obs_type=obs_type)
+            enc = EquivariantEncoder128Dihedral(obs_channel, n_hidden, initialize, equi_n).to(device)
+            actor = EquivariantSACActorDihedralShareEnc(enc, (obs_channel, crop_size, crop_size), len(action_sequence),
+                                                        n_hidden=n_hidden, initialize=initialize, N=equi_n,
+                                                        kernel_size=3).to(device)
+            critic = EquivariantSACCriticDihedralShareEnc(enc, (obs_channel, crop_size, crop_size),
+                                                          len(action_sequence), n_hidden=n_hidden,
+                                                          initialize=initialize, N=equi_n, kernel_size=3).to(device)
+            agent.initNetwork(actor, critic)
 
     elif alg in ['bc_con']:
         agent = BehaviorCloningContinuous(lr=lr, gamma=gamma, device=device, dx=dpos, dy=dpos, dz=dpos, dr=drot,

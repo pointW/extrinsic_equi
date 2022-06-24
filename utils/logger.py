@@ -79,7 +79,7 @@ class Logger(object):
         # Buffer of transitions
         self.transitions = list()
 
-    def stepBookkeeping(self, rewards, step_lefts, done_masks):
+    def stepBookkeeping(self, rewards, done_masks):
         for i, r in enumerate(rewards.reshape(-1)):
             self.episode_rewards[i].append(r)
         # self.episode_rewards += rewards.squeeze()
@@ -95,7 +95,6 @@ class Logger(object):
                 self.step_success.append([self.num_training_steps, self.episode_rewards[i][-1]])
                 self.episode_rewards[i] = []
         # self.rewards.extend(self.episode_rewards[done_masks.astype(bool)])
-        self.steps_left.extend(step_lefts[done_masks.astype(bool)])
         # self.episode_rewards[done_masks.astype(bool)] = 0.
 
     def trainingBookkeeping(self, loss, td_error):
