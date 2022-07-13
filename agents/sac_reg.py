@@ -62,6 +62,7 @@ class SACReg(SAC):
         self.reward_optimizer.zero_grad()
         self.transition_optimizer.zero_grad()
         model_loss.backward()
+        self.reward_optimizer.step()
         self.transition_optimizer.step()
 
         return qf1_loss, qf2_loss, reward_model_loss, transition_model_loss, td_error
