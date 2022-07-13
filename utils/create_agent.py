@@ -249,16 +249,17 @@ def createAgent(test=False):
                            n_a=len(action_sequence), tau=tau, alpha=init_temp, policy_type='gaussian',
                            target_update_interval=1, automatic_entropy_tuning=True, obs_type=obs_type)
 
-            enc = EquivariantEncoder128Dihedral(obs_channel, n_hidden, initialize, equi_n).to(device)
-            actor = EquivariantSACActorDihedralShareEnc(enc, (obs_channel, crop_size, crop_size), len(action_sequence),
-                                                        n_hidden=n_hidden, initialize=initialize, N=equi_n,
-                                                        kernel_size=3).to(device)
-            critic = EquivariantSACCriticDihedralShareEnc(enc, (obs_channel, crop_size, crop_size),
-                                                          len(action_sequence), n_hidden=n_hidden,
-                                                          initialize=initialize, N=equi_n, kernel_size=3).to(device)
-            reward_model = EquivariantRewardModelDihedral(n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
-            transition_model = EquivariantTransitionModelDihedral(n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
-            agent.initNetwork(actor, critic, reward_model, transition_model)
+            actor = EquivariantSACActorDihedral((obs_channel, crop_size, crop_size), len(action_sequence),
+                                                n_hidden=n_hidden, initialize=initialize, N=equi_n, kernel_size=3).to(device)
+            critic = EquivariantSACCriticDihedral((obs_channel, crop_size, crop_size), len(action_sequence),
+                                                  n_hidden=n_hidden, initialize=initialize, N=equi_n, kernel_size=3).to(device)
+
+            actor_reward_model = EquivariantRewardModelDihedral(n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
+            actor_transition_model = EquivariantTransitionModelDihedral(n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
+            critic_reward_model = EquivariantRewardModelDihedral(n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
+            critic_transition_model = EquivariantTransitionModelDihedral(n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
+
+            agent.initNetwork(actor, critic, actor_reward_model, actor_transition_model, critic_reward_model, critic_transition_model)
 
     elif alg in ['sac_share_enc']:
         sac_lr = (actor_lr, critic_lr)

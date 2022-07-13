@@ -1301,8 +1301,8 @@ class EquivariantSACActorDihedral(SACGaussianPolicyBase):
         self.d4_act = gspaces.FlipRot2dOnR2(N)
         self.n_rho1 = 2 if N==2 else 1
         enc = EquivariantEncoder128Dihedral if kernel_size == 3 else EquivariantEncoder128DihedralK5
+        self.img_conv = enc(self.obs_channel, n_hidden, initialize, N)
         self.conv = torch.nn.Sequential(
-            enc(self.obs_channel, n_hidden, initialize, N),
             nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
                       nn.FieldType(self.d4_act, self.n_rho1 * [self.d4_act.irrep(1, 1)] + 1 * [self.d4_act.quotient_repr((None, 4))] + (action_dim * 2 - 3) * [self.d4_act.trivial_repr]),
                       kernel_size=1, padding=0, initialize=initialize)
@@ -1311,7 +1311,8 @@ class EquivariantSACActorDihedral(SACGaussianPolicyBase):
     def forward(self, obs):
         batch_size = obs.shape[0]
         obs_geo = nn.GeometricTensor(obs, nn.FieldType(self.d4_act, self.obs_channel * [self.d4_act.trivial_repr]))
-        conv_out = self.conv(obs_geo).tensor.reshape(batch_size, -1)
+        enc_out = self.img_conv(obs_geo)
+        conv_out = self.conv(enc_out).tensor.reshape(batch_size, -1)
         dxy = conv_out[:, 0:2]
         dtheta = conv_out[:, 2:3] - conv_out[:, 3:4]
         inv_act = conv_out[:, 4:self.action_dim+1]
@@ -1329,7 +1330,7 @@ class EquivariantSACActorDihedralShareEnc(SACGaussianPolicyBase):
         self.action_dim = action_dim
         self.d4_act = gspaces.FlipRot2dOnR2(N)
         self.n_rho1 = 2 if N==2 else 1
-        self.enc = enc
+        self.img_conv = enc
         self.conv = torch.nn.Sequential(
             nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
                       nn.FieldType(self.d4_act, self.n_rho1 * [self.d4_act.irrep(1, 1)] + 1 * [self.d4_act.quotient_repr((None, 4))] + (action_dim * 2 - 3) * [self.d4_act.trivial_repr]),
@@ -1340,7 +1341,7 @@ class EquivariantSACActorDihedralShareEnc(SACGaussianPolicyBase):
         batch_size = obs.shape[0]
         obs_geo = nn.GeometricTensor(obs, nn.FieldType(self.d4_act, self.obs_channel * [self.d4_act.trivial_repr]))
         with torch.no_grad():
-            enc_out = self.enc(obs_geo)
+            enc_out = self.img_conv(obs_geo)
         conv_out = self.conv(enc_out).tensor.reshape(batch_size, -1)
         dxy = conv_out[:, 0:2]
         dtheta = conv_out[:, 2:3] - conv_out[:, 3:4]

@@ -11,33 +11,55 @@ class SACReg(SAC):
                  obs_type='pixel'):
         super().__init__(lr, gamma, device, dx, dy, dz, dr, n_a, tau, alpha, policy_type, target_update_interval,
                          automatic_entropy_tuning, obs_type)
-        self.reward_model = None
-        self.transition_model = None
-        self.reward_optimizer = None
-        self.transition_optimizer = None
+        self.actor_reward_model = None
+        self.actor_transition_model = None
+        self.actor_reward_optimizer = None
+        self.actor_transition_optimizer = None
+        self.critic_reward_model = None
+        self.critic_transition_model = None
+        self.critic_reward_optimizer = None
+        self.critic_transition_optimizer = None
         self.model_loss_w = 1
 
-    def initNetwork(self, actor, critic, reward_model, transition_model, initialize_target=True):
-        self.actor = actor
-        self.critic = critic
-        self.reward_model = reward_model
-        self.transition_model = transition_model
-        self.actor_optimizer = torch.optim.Adam(self.actor.conv.parameters(), lr=self.lr[0])
-        self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=self.lr[1])
-        self.reward_optimizer = torch.optim.Adam(self.reward_model.parameters(), lr=1e-3)
-        self.transition_optimizer = torch.optim.Adam(self.transition_model.parameters(), lr=1e-3)
+    def initNetwork(self, actor, critic, actor_reward_model, actor_transition_model, critic_reward_model, critic_transition_model, initialize_target=True):
+        super().initNetwork(actor, critic, initialize_target)
+        self.actor_reward_model = actor_reward_model
+        self.actor_transition_model = actor_transition_model
+        self.critic_reward_model = critic_reward_model
+        self.critic_transition_model = critic_transition_model
+
+        self.networks.append(self.actor_reward_model)
+        self.networks.append(self.actor_transition_model)
+        self.networks.append(self.critic_reward_model)
+        self.networks.append(self.critic_transition_model)
+
+        self.actor_reward_optimizer = torch.optim.Adam(self.actor_reward_model.parameters(), lr=1e-3)
+        self.actor_transition_optimizer = torch.optim.Adam(self.actor_transition_model.parameters(), lr=1e-3)
+        self.critic_reward_optimizer = torch.optim.Adam(self.critic_reward_model.parameters(), lr=1e-3)
+        self.critic_transition_optimizer = torch.optim.Adam(self.critic_transition_model.parameters(), lr=1e-3)
+
+        self.optimizers.append(self.actor_reward_optimizer)
+        self.optimizers.append(self.actor_transition_optimizer)
+        self.optimizers.append(self.critic_reward_optimizer)
+        self.optimizers.append(self.critic_transition_optimizer)
+
         if initialize_target:
-            self.critic_target = deepcopy(critic)
-            self.target_networks.append(self.critic_target)
-        self.networks.append(self.actor)
-        self.networks.append(self.critic)
-        self.networks.append(self.reward_model)
-        self.networks.append(self.transition_model)
-        self.optimizers.append(self.actor_optimizer)
-        self.optimizers.append(self.critic_optimizer)
-        self.optimizers.append(self.alpha_optim)
-        self.optimizers.append(self.reward_optimizer)
-        self.optimizers.append(self.transition_optimizer)
+            self.actor_target = deepcopy(actor)
+            self.target_networks.append(self.actor_target)
+
+    def targetSoftUpdate(self):
+        """Soft-update: target = tau*local + (1-tau)*target."""
+        tau = self.tau
+
+        for t_param, l_param in zip(
+                self.critic_target.parameters(), self.critic.parameters()
+        ):
+            t_param.data.copy_(tau * l_param.data + (1.0 - tau) * t_param.data)
+
+        for t_param, l_param in zip(
+                self.actor_target.parameters(), self.actor.parameters()
+        ):
+            t_param.data.copy_(tau * l_param.data + (1.0 - tau) * t_param.data)
 
     def updateCritic(self):
         qf1_loss, qf2_loss, td_error = self.calcCriticLoss()
@@ -45,10 +67,10 @@ class SACReg(SAC):
 
         batch_size, states, obs, action, rewards, next_states, next_obs, non_final_masks, step_lefts, is_experts = self._loadLossCalcDict()
         latent_state = self.critic.img_conv.forwardNormalTensor(obs)
-        reward_pred = self.reward_model(latent_state, action)
+        reward_pred = self.critic_reward_model(latent_state, action)
         reward_model_loss = F.mse_loss(reward_pred, rewards)
 
-        latent_next_state_pred = self.transition_model(latent_state, action)
+        latent_next_state_pred = self.critic_transition_model(latent_state, action)
         latent_next_state_gc = self.critic_target.img_conv.forwardNormalTensor(next_obs).tensor.reshape(batch_size, -1).detach()
         transition_model_loss = F.mse_loss(latent_next_state_pred, latent_next_state_gc)
 
@@ -59,13 +81,54 @@ class SACReg(SAC):
         self.critic_optimizer.step()
 
         model_loss = reward_model_loss + transition_model_loss
-        self.reward_optimizer.zero_grad()
-        self.transition_optimizer.zero_grad()
+        self.critic_reward_optimizer.zero_grad()
+        self.critic_transition_optimizer.zero_grad()
         model_loss.backward()
-        self.reward_optimizer.step()
-        self.transition_optimizer.step()
+        self.critic_reward_optimizer.step()
+        self.critic_transition_optimizer.step()
 
         return qf1_loss, qf2_loss, reward_model_loss, transition_model_loss, td_error
+
+    def updateActorAndAlpha(self):
+        policy_loss = self.calcActorLoss()
+        log_pi = self.loss_calc_dict['log_pi']
+
+        batch_size, states, obs, action, rewards, next_states, next_obs, non_final_masks, step_lefts, is_experts = self._loadLossCalcDict()
+        latent_state = self.actor.img_conv.forwardNormalTensor(obs)
+        reward_pred = self.actor_reward_model(latent_state, action)
+        reward_model_loss = F.mse_loss(reward_pred, rewards)
+
+        latent_next_state_pred = self.actor_transition_model(latent_state, action)
+        latent_next_state_gc = self.actor_target.img_conv.forwardNormalTensor(next_obs).tensor.reshape(batch_size, -1).detach()
+        transition_model_loss = F.mse_loss(latent_next_state_pred, latent_next_state_gc)
+
+        policy_loss = policy_loss + self.model_loss_w * (reward_model_loss + transition_model_loss)
+
+        self.actor_optimizer.zero_grad()
+        policy_loss.backward(retain_graph=True)
+        self.actor_optimizer.step()
+
+        model_loss = reward_model_loss + transition_model_loss
+        self.actor_reward_optimizer.zero_grad()
+        self.actor_transition_optimizer.zero_grad()
+        model_loss.backward()
+        self.actor_reward_optimizer.step()
+        self.actor_transition_optimizer.step()
+
+        if self.automatic_entropy_tuning:
+            alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()
+
+            self.alpha_optim.zero_grad()
+            alpha_loss.backward()
+            self.alpha_optim.step()
+
+            self.alpha = self.log_alpha.exp()
+            alpha_tlogs = self.alpha.clone()  # For TensorboardX logs
+        else:
+            alpha_loss = torch.tensor(0.).to(self.device)
+            alpha_tlogs = torch.tensor(self.alpha)  # For TensorboardX logs
+
+        return policy_loss, alpha_loss, alpha_tlogs
 
     def update(self, batch):
         self._loadBatchToDevice(batch)
