@@ -118,6 +118,8 @@ def train():
     eval_agent.train()
     if load_model_pre:
         agent.loadModel(load_model_pre)
+    if load_t_r_model_pre:
+        agent.loadTransAndRewardModel(load_t_r_model_pre)
 
     # logging
     simulator_str = copy.copy(simulator)

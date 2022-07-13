@@ -21,6 +21,8 @@ class SACReg(SAC):
         self.critic_transition_optimizer = None
         self.model_loss_w = 1
 
+        self.fix_trans_reward = False
+
     def initNetwork(self, actor, critic, actor_reward_model, actor_transition_model, critic_reward_model, critic_transition_model, initialize_target=True):
         super().initNetwork(actor, critic, initialize_target)
         self.actor_reward_model = actor_reward_model
@@ -46,6 +48,17 @@ class SACReg(SAC):
         if initialize_target:
             self.actor_target = deepcopy(actor)
             self.target_networks.append(self.actor_target)
+
+    def loadTransAndRewardModel(self, path_pre):
+        """
+        load the saved models
+        :param path_pre: path prefix to the model
+        """
+        for i in range(2, len(self.networks)):
+            path = path_pre + '_{}.pt'.format(i)
+            print('loading {}'.format(path))
+            self.networks[i].load_state_dict(torch.load(path))
+        self.fix_trans_reward = True
 
     def targetSoftUpdate(self):
         """Soft-update: target = tau*local + (1-tau)*target."""
@@ -76,16 +89,24 @@ class SACReg(SAC):
 
         critic_loss = qf_loss + self.model_loss_w * (reward_model_loss + transition_model_loss)
 
-        self.critic_optimizer.zero_grad()
-        critic_loss.backward(retain_graph=True)
-        self.critic_optimizer.step()
+        if self.fix_trans_reward:
+            self.critic_optimizer.zero_grad()
+            critic_loss.backward()
+            self.critic_optimizer.step()
 
-        model_loss = reward_model_loss + transition_model_loss
-        self.critic_reward_optimizer.zero_grad()
-        self.critic_transition_optimizer.zero_grad()
-        model_loss.backward()
-        self.critic_reward_optimizer.step()
-        self.critic_transition_optimizer.step()
+        else:
+            model_loss = reward_model_loss + transition_model_loss
+            self.critic_reward_optimizer.zero_grad()
+            self.critic_transition_optimizer.zero_grad()
+            model_loss.backward(retain_graph=True)
+            self.critic_reward_optimizer.step()
+            self.critic_transition_optimizer.step()
+
+            self.critic_optimizer.zero_grad()
+            critic_loss.backward()
+            self.critic_optimizer.step()
+
+
 
         return qf1_loss, qf2_loss, reward_model_loss, transition_model_loss, td_error
 
@@ -104,16 +125,22 @@ class SACReg(SAC):
 
         policy_loss = policy_loss + self.model_loss_w * (reward_model_loss + transition_model_loss)
 
-        self.actor_optimizer.zero_grad()
-        policy_loss.backward(retain_graph=True)
-        self.actor_optimizer.step()
+        if self.fix_trans_reward:
+            self.actor_optimizer.zero_grad()
+            policy_loss.backward()
+            self.actor_optimizer.step()
 
-        model_loss = reward_model_loss + transition_model_loss
-        self.actor_reward_optimizer.zero_grad()
-        self.actor_transition_optimizer.zero_grad()
-        model_loss.backward()
-        self.actor_reward_optimizer.step()
-        self.actor_transition_optimizer.step()
+        else:
+            model_loss = reward_model_loss + transition_model_loss
+            self.actor_reward_optimizer.zero_grad()
+            self.actor_transition_optimizer.zero_grad()
+            model_loss.backward(retain_graph=True)
+            self.actor_reward_optimizer.step()
+            self.actor_transition_optimizer.step()
+
+            self.actor_optimizer.zero_grad()
+            policy_loss.backward()
+            self.actor_optimizer.step()
 
         if self.automatic_entropy_tuning:
             alpha_loss = -(self.log_alpha * (log_pi + self.target_entropy).detach()).mean()

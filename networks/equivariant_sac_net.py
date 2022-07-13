@@ -159,6 +159,50 @@ class EquivariantEncoder128Dihedral(torch.nn.Module):
         geo = nn.GeometricTensor(x, nn.FieldType(self.d4_act, self.obs_channel*[self.d4_act.trivial_repr]))
         return self.conv(geo)
 
+class NonEquivariantEnc(torch.nn.Module):
+    def __init__(self, n_in_channel, n_hidden, N):
+        super().__init__()
+        self.d4_act = gspaces.FlipRot2dOnR2(N)
+        self.n_hidden = n_hidden
+        self.conv = torch.nn.Sequential(
+            torch.nn.Conv2d(n_in_channel, 32, kernel_size=3, padding=1),
+            torch.nn.ReLU(inplace=True),
+            torch.nn.MaxPool2d(2),
+            # 64x64
+            torch.nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            torch.nn.ReLU(inplace=True),
+            torch.nn.MaxPool2d(2),
+            # 32x32
+            torch.nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            torch.nn.ReLU(inplace=True),
+            torch.nn.MaxPool2d(2),
+            # 16x16
+            torch.nn.Conv2d(128, 256, kernel_size=3, padding=1),
+            torch.nn.ReLU(inplace=True),
+            torch.nn.MaxPool2d(2),
+            # 8x8
+            torch.nn.Conv2d(256, 512, kernel_size=3, padding=1),
+            torch.nn.ReLU(inplace=True),
+
+            torch.nn.Conv2d(512, 512, kernel_size=3, padding=0),
+            torch.nn.ReLU(),
+            torch.nn.MaxPool2d(2),
+            torch.nn.Conv2d(512, 512, kernel_size=3, padding=0),
+            torch.nn.ReLU(),
+            torch.nn.Conv2d(512, n_hidden * N * 2, kernel_size=1, padding=0),
+            torch.nn.ReLU()
+        )
+
+    def forward(self, x):
+        enc_out = self.conv(x)
+        enc_out = nn.GeometricTensor(enc_out, nn.FieldType(self.d4_act, self.n_hidden * [self.d4_act.regular_repr]))
+        return enc_out
+
+    def forwardNormalTensor(self, x):
+        enc_out = self.conv(x)
+        enc_out = nn.GeometricTensor(enc_out, nn.FieldType(self.d4_act, self.n_hidden * [self.d4_act.regular_repr]))
+        return enc_out
+
 class EquivariantEncoder128DihedralK5(torch.nn.Module):
     def __init__(self, obs_channel=2, n_out=128, initialize=True, N=4):
         super().__init__()
@@ -876,6 +920,52 @@ class EquivariantSACCriticDihedral(torch.nn.Module):
         out2 = self.critic_2(cat_geo).tensor.reshape(batch_size, 1)
         return out1, out2
 
+class EquivariantSACCriticDihedralWithNonEquiEnc(torch.nn.Module):
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4, kernel_size=3):
+        super().__init__()
+        assert kernel_size in [3, 5]
+        self.obs_channel = obs_shape[0]
+        self.n_hidden = n_hidden
+        self.d4_act = gspaces.FlipRot2dOnR2(N)
+        self.img_conv = NonEquivariantEnc(2, n_hidden, N)
+        self.n_rho1 = 2 if N==2 else 1
+        self.critic_1 = torch.nn.Sequential(
+            nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr] + (action_dim - 3) * [self.d4_act.trivial_repr] + self.n_rho1 * [self.d4_act.irrep(1, 1)] + 1 * [self.d4_act.quotient_repr((None, 4))]),
+                      nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
+                      kernel_size=1, padding=0, initialize=initialize),
+            nn.ReLU(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]), inplace=True),
+            nn.GroupPooling(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr])),
+            nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.trivial_repr]),
+                      nn.FieldType(self.d4_act, 1 * [self.d4_act.trivial_repr]),
+                      kernel_size=1, padding=0, initialize=initialize),
+        )
+
+        self.critic_2 = torch.nn.Sequential(
+            nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr] + (action_dim - 3) * [self.d4_act.trivial_repr] + self.n_rho1 * [self.d4_act.irrep(1, 1)] + 1 * [self.d4_act.quotient_repr((None, 4))]),
+                      nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
+                      kernel_size=1, padding=0, initialize=initialize),
+            nn.ReLU(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]), inplace=True),
+            nn.GroupPooling(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr])),
+            nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.trivial_repr]),
+                      nn.FieldType(self.d4_act, 1 * [self.d4_act.trivial_repr]),
+                      kernel_size=1, padding=0, initialize=initialize),
+        )
+
+    def forward(self, obs, act):
+        batch_size = obs.shape[0]
+        enc_out = self.img_conv(obs)
+        dxy = act[:, 1:3]
+        inv_act = torch.cat((act[:, 0:1], act[:, 3:4]), dim=1)
+        dtheta = act[:, 4:5]
+        n_inv = inv_act.shape[1]
+        # dxy_geo = nn.GeometricTensor(dxy.reshape(batch_size, 2, 1, 1), nn.FieldType(self.c4_act, 1*[self.c4_act.irrep(1)]))
+        # inv_act_geo = nn.GeometricTensor(inv_act.reshape(batch_size, n_inv, 1, 1), nn.FieldType(self.c4_act, n_inv*[self.c4_act.trivial_repr]))
+        cat = torch.cat((enc_out.tensor, inv_act.reshape(batch_size, n_inv, 1, 1), dxy.reshape(batch_size, 2, 1, 1), dtheta.reshape(batch_size, 1, 1, 1), (-dtheta).reshape(batch_size, 1, 1, 1)), dim=1)
+        cat_geo = nn.GeometricTensor(cat, nn.FieldType(self.d4_act, self.n_hidden * [self.d4_act.regular_repr] + n_inv * [self.d4_act.trivial_repr] + self.n_rho1 * [self.d4_act.irrep(1, 1)] + 1 * [self.d4_act.quotient_repr((None, 4))]))
+        out1 = self.critic_1(cat_geo).tensor.reshape(batch_size, 1)
+        out2 = self.critic_2(cat_geo).tensor.reshape(batch_size, 1)
+        return out1, out2
+
 class EquivariantSACCriticDihedralShareEnc(torch.nn.Module):
     def __init__(self, enc, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4, kernel_size=3):
         super().__init__()
@@ -1312,6 +1402,35 @@ class EquivariantSACActorDihedral(SACGaussianPolicyBase):
         batch_size = obs.shape[0]
         obs_geo = nn.GeometricTensor(obs, nn.FieldType(self.d4_act, self.obs_channel * [self.d4_act.trivial_repr]))
         enc_out = self.img_conv(obs_geo)
+        conv_out = self.conv(enc_out).tensor.reshape(batch_size, -1)
+        dxy = conv_out[:, 0:2]
+        dtheta = conv_out[:, 2:3] - conv_out[:, 3:4]
+        inv_act = conv_out[:, 4:self.action_dim+1]
+        mean = torch.cat((inv_act[:, 0:1], dxy, inv_act[:, 1:2], dtheta), dim=1)
+        log_std = conv_out[:, self.action_dim+1:]
+        log_std = torch.clamp(log_std, min=LOG_SIG_MIN, max=LOG_SIG_MAX)
+        return mean, log_std
+
+class EquivariantSACActorDihedralWithNonEquiEnc(SACGaussianPolicyBase):
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4, kernel_size=3):
+        super().__init__()
+        assert obs_shape[1] in [128, 64]
+        assert kernel_size in [3, 5]
+        self.obs_channel = obs_shape[0]
+        self.action_dim = action_dim
+        self.d4_act = gspaces.FlipRot2dOnR2(N)
+        self.n_rho1 = 2 if N==2 else 1
+        self.n_hidden = n_hidden
+        self.img_conv = NonEquivariantEnc(2, n_hidden, N)
+        self.conv = torch.nn.Sequential(
+            nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
+                      nn.FieldType(self.d4_act, self.n_rho1 * [self.d4_act.irrep(1, 1)] + 1 * [self.d4_act.quotient_repr((None, 4))] + (action_dim * 2 - 3) * [self.d4_act.trivial_repr]),
+                      kernel_size=1, padding=0, initialize=initialize)
+        )
+
+    def forward(self, obs):
+        batch_size = obs.shape[0]
+        enc_out = self.img_conv(obs)
         conv_out = self.conv(enc_out).tensor.reshape(batch_size, -1)
         dxy = conv_out[:, 0:2]
         dtheta = conv_out[:, 2:3] - conv_out[:, 3:4]
@@ -1797,11 +1916,11 @@ if __name__ == '__main__':
 
     # out = critic(o, a)
 
-    actor = EquivariantSACActorDihedral(obs_shape=(2, 128, 128), action_dim=5, n_hidden=32, initialize=True)
+    actor = EquivariantSACActorDihedralWithNonEquiEnc(obs_shape=(2, 128, 128), action_dim=5, n_hidden=32, initialize=True)
     out = actor(o)
     out2 = actor(o2)
 
-    critic = EquivariantSACCriticDihedral(obs_shape=(2, 128, 128), action_dim=5, n_hidden=32, initialize=True)
+    critic = EquivariantSACCriticDihedralWithNonEquiEnc(obs_shape=(2, 128, 128), action_dim=5, n_hidden=32, initialize=True)
     print(1)
     # actor = EquivariantSACActor2(obs_shape=(2, 128, 128), action_dim=5, n_hidden=64, initialize=False)
     # out3 = actor(o)

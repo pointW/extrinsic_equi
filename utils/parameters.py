@@ -53,6 +53,7 @@ training_group.add_argument('--target_update_freq', type=int, default=100)
 training_group.add_argument('--save_freq', type=int, default=100)
 training_group.add_argument('--action_selection', type=str, default='egreedy')
 training_group.add_argument('--load_model_pre', type=str, default=None)
+training_group.add_argument('--load_t_r_model_pre', type=str, default=None)
 training_group.add_argument('--planner_episode', type=int, default=0)
 training_group.add_argument('--note', type=str, default=None)
 training_group.add_argument('--seed', type=int, default=None)
@@ -176,6 +177,7 @@ action_selection = args.action_selection
 planner_episode = args.planner_episode
 
 load_model_pre = args.load_model_pre
+load_t_r_model_pre = args.load_t_r_model_pre
 is_test = args.test
 note = args.note
 seed = args.seed
