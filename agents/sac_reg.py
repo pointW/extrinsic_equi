@@ -155,12 +155,12 @@ class SACReg(SAC):
             alpha_loss = torch.tensor(0.).to(self.device)
             alpha_tlogs = torch.tensor(self.alpha)  # For TensorboardX logs
 
-        return policy_loss, alpha_loss, alpha_tlogs
+        return policy_loss, alpha_loss, alpha_tlogs, reward_model_loss, transition_model_loss
 
     def update(self, batch):
         self._loadBatchToDevice(batch)
-        qf1_loss, qf2_loss, reward_model_loss, transition_model_loss, td_error = self.updateCritic()
-        policy_loss, alpha_loss, alpha_tlogs = self.updateActorAndAlpha()
+        qf1_loss, qf2_loss, critic_reward_model_loss, critic_transition_model_loss, td_error = self.updateCritic()
+        policy_loss, alpha_loss, alpha_tlogs, actor_reward_model_loss, actor_transition_model_loss = self.updateActorAndAlpha()
 
         self.num_update += 1
         if self.num_update % self.target_update_interval == 0:
@@ -168,5 +168,5 @@ class SACReg(SAC):
 
         self.loss_calc_dict = {}
 
-        return (qf1_loss.item(), qf2_loss.item(), policy_loss.item(), alpha_loss.item(), alpha_tlogs.item(), reward_model_loss.item(), transition_model_loss.item()), td_error
+        return (qf1_loss.item(), qf2_loss.item(), policy_loss.item(), alpha_loss.item(), alpha_tlogs.item(), critic_reward_model_loss.item(), critic_transition_model_loss.item(), actor_reward_model_loss.item(), actor_transition_model_loss.item()), td_error
 
