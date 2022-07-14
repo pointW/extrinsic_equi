@@ -49,6 +49,10 @@ class SACReg(SAC):
             self.actor_target = deepcopy(actor)
             self.target_networks.append(self.actor_target)
 
+        self.networks.append(self.actor.conv)
+        self.networks.append(self.critic.critic_1)
+        self.networks.append(self.critic.critic_2)
+
     def loadTransAndRewardModel(self, path_pre):
         """
         load the saved models
