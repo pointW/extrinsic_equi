@@ -37,7 +37,10 @@ from networks.equivariant_sac_net import EquivariantSACCriticDihedralWithNonEqui
 
 def createAgent(test=False):
     print('initializing agent')
-    obs_channel = 2
+    if view_type.find('rgbd') > -1:
+        obs_channel = 5
+    else:
+        obs_channel = 2
     if load_sub is not None or load_model_pre is not None or test:
         initialize = False
     else:

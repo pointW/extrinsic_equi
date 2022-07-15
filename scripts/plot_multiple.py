@@ -659,12 +659,12 @@ def plotLoss(base, step):
 
 
 if __name__ == '__main__':
-    base = '/media/dian/hdd/mrun_results/close_loop_1p/CoRL22/aux/push'
+    base = '/media/dian/hdd/mrun_results/transfer/0713_reg/bowl'
     # plotLearningCurve(base, 1000, window=20)
     # plotSuccessRate(base, 1000, window=20)
-    # plotEvalCurve(base, 5000, freq=200)
+    plotEvalCurve(base, 10000, freq=500)
     # showPerformance(base)
     # plotLoss(base, 30000)
 
-    plotStepRewardCurve(base, 10000, freq=200)
+    # plotStepRewardCurve(base, 10000, freq=200)
 

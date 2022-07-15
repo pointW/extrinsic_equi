@@ -184,7 +184,7 @@ class Logger(object):
     def saveTdErrorCurve(self, n=100):
         plt.style.use('ggplot')
         n = min(n, len(self.td_errors))
-        if n > 0:
+        if n > 0 and np.sum(self.td_errors) > 0:
             plt.plot(np.mean(list(windowed(self.td_errors, n)), axis=1))
             plt.yscale('log')
             plt.savefig(os.path.join(self.info_dir, 'td_error_curve.pdf'))
