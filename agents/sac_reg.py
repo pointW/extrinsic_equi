@@ -75,7 +75,7 @@ class SACReg(SAC):
         load the saved models
         :param path_pre: path prefix to the model
         """
-        for i in range(2, len(self.networks)):
+        for i in range(2, 6):
             path = path_pre + '_{}.pt'.format(i)
             print('loading {}'.format(path))
             self.networks[i].load_state_dict(torch.load(path))
