@@ -9,6 +9,11 @@ def strToBool(value):
         return True
     raise ValueError(f'{value} is not a valid boolean value')
 
+def noneOrStr(value):
+    if value == 'None':
+        return None
+    return value
+
 parser = argparse.ArgumentParser()
 env_group = parser.add_argument_group('environment')
 env_group.add_argument('--env', type=str, default='close_loop_block_stacking', help='block_picking, block_stacking, brick_stacking, '
@@ -53,7 +58,6 @@ training_group.add_argument('--target_update_freq', type=int, default=100)
 training_group.add_argument('--save_freq', type=int, default=100)
 training_group.add_argument('--action_selection', type=str, default='egreedy')
 training_group.add_argument('--load_model_pre', type=str, default=None)
-training_group.add_argument('--load_t_r_model_pre', type=str, default=None)
 training_group.add_argument('--planner_episode', type=int, default=0)
 training_group.add_argument('--note', type=str, default=None)
 training_group.add_argument('--seed', type=int, default=None)
@@ -76,6 +80,7 @@ training_group.add_argument('--buffer_aug_n', type=int, default=4)
 training_group.add_argument('--expert_aug_n', type=int, default=0)
 training_group.add_argument('--simulate_n', type=int, default=0)
 training_group.add_argument('--train_simulate', type=strToBool, default=False)
+training_group.add_argument('--load_t_r_model_pre', type=noneOrStr, default=None)
 training_group.add_argument('--model_loss_w', type=float, default=0.1)
 
 eval_group = parser.add_argument_group('eval')
