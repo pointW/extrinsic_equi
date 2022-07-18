@@ -49,26 +49,14 @@ class SACReg(SAC):
             self.actor_target = deepcopy(actor)
             self.target_networks.append(self.actor_target)
 
-        self.networks.append(self.actor.conv)
-        self.networks.append(self.critic.critic_1)
-        self.networks.append(self.critic.critic_2)
-
-    def getSaveState(self):
-        state = {}
-        for i in range(len(self.networks)):
-            self.networks[i].to('cpu')
-            state['{}'.format(i)] = self.networks[i].state_dict()
-            self.networks[i].to(self.device)
-        for i in range(len(self.optimizers)):
-            state['{}_optimizer'.format(i)] = self.optimizers[i].state_dict()
-        for i in range(len(self.target_networks)):
-            self.target_networks[i].to('cpu')
-            state['{}_target'.format(i)] = self.target_networks[i].state_dict()
-            self.target_networks[i].to(self.device)
-        state['alpha'] = self.alpha
-        state['log_alpha'] = self.log_alpha
-        state['alpha_optimizer'] = self.alpha_optim.state_dict()
-        return state
+    def saveModel(self, path_pre):
+        """
+        save the models with path prefix path_pre. a '_q{}.pt' suffix will be added to each model
+        :param path_pre: path prefix
+        """
+        networks = self.networks + [self.actor.conv, self.critic.critic_1, self.critic.critic_2]
+        for i in range(networks):
+            torch.save(self.networks[i].state_dict(), '{}_{}.pt'.format(path_pre, i))
 
     def loadTransAndRewardModel(self, path_pre):
         """
