@@ -90,7 +90,7 @@ class SACReg(SAC):
         batch_size, states, obs, action, rewards, next_states, next_obs, non_final_masks, step_lefts, is_experts = self._loadLossCalcDict()
         latent_state = self.critic.img_conv.forwardNormalTensor(obs)
         reward_pred = self.critic_reward_model(latent_state, action)
-        reward_model_loss = F.mse_loss(reward_pred, rewards)
+        reward_model_loss = F.cross_entropy(reward_pred, rewards.long(), weight=torch.tensor([0.1, 1]).to(self.device))
 
         latent_next_state_pred = self.critic_transition_model(latent_state, action)
         latent_next_state_gc = self.critic_target.img_conv.forwardNormalTensor(next_obs).tensor.reshape(batch_size, -1).detach()
@@ -126,7 +126,7 @@ class SACReg(SAC):
         batch_size, states, obs, action, rewards, next_states, next_obs, non_final_masks, step_lefts, is_experts = self._loadLossCalcDict()
         latent_state = self.actor.img_conv.forwardNormalTensor(obs)
         reward_pred = self.actor_reward_model(latent_state, action)
-        reward_model_loss = F.mse_loss(reward_pred, rewards)
+        reward_model_loss = F.cross_entropy(reward_pred, rewards.long(), weight=torch.tensor([0.1, 1]).to(self.device))
 
         latent_next_state_pred = self.actor_transition_model(latent_state, action)
         latent_next_state_gc = self.actor_target.img_conv.forwardNormalTensor(next_obs).tensor.reshape(batch_size, -1).detach()
