@@ -76,6 +76,7 @@ training_group.add_argument('--buffer_aug_n', type=int, default=4)
 training_group.add_argument('--expert_aug_n', type=int, default=0)
 training_group.add_argument('--simulate_n', type=int, default=0)
 training_group.add_argument('--train_simulate', type=strToBool, default=False)
+training_group.add_argument('--model_loss_w', type=float, default=0.1)
 
 eval_group = parser.add_argument_group('eval')
 eval_group.add_argument('--eval_freq', default=500, type=int)
@@ -200,6 +201,8 @@ expert_aug_n = args.expert_aug_n
 
 simulate_n = args.simulate_n
 train_simulate = args.train_simulate
+
+model_loss_w = args.model_loss_w
 
 # eval
 eval_freq = args.eval_freq

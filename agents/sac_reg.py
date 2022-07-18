@@ -8,7 +8,7 @@ from utils.torch_utils import augmentTransition, perturb
 class SACReg(SAC):
     def __init__(self, lr=1e-4, gamma=0.95, device='cuda', dx=0.005, dy=0.005, dz=0.005, dr=np.pi/16, n_a=5, tau=0.001,
                  alpha=0.01, policy_type='gaussian', target_update_interval=1, automatic_entropy_tuning=False,
-                 obs_type='pixel'):
+                 obs_type='pixel', model_loss_w=0.1):
         super().__init__(lr, gamma, device, dx, dy, dz, dr, n_a, tau, alpha, policy_type, target_update_interval,
                          automatic_entropy_tuning, obs_type)
         self.actor_reward_model = None
@@ -19,7 +19,7 @@ class SACReg(SAC):
         self.critic_transition_model = None
         self.critic_reward_optimizer = None
         self.critic_transition_optimizer = None
-        self.model_loss_w = 1
+        self.model_loss_w = model_loss_w
 
         self.fix_trans_reward = False
 
