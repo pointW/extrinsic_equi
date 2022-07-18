@@ -927,7 +927,7 @@ class EquivariantSACCriticDihedralWithNonEquiEnc(torch.nn.Module):
         self.obs_channel = obs_shape[0]
         self.n_hidden = n_hidden
         self.d4_act = gspaces.FlipRot2dOnR2(N)
-        self.img_conv = NonEquivariantEnc(2, n_hidden, N)
+        self.img_conv = NonEquivariantEnc(self.obs_channel, n_hidden, N)
         self.n_rho1 = 2 if N==2 else 1
         self.critic_1 = torch.nn.Sequential(
             nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr] + (action_dim - 3) * [self.d4_act.trivial_repr] + self.n_rho1 * [self.d4_act.irrep(1, 1)] + 1 * [self.d4_act.quotient_repr((None, 4))]),
@@ -1421,7 +1421,7 @@ class EquivariantSACActorDihedralWithNonEquiEnc(SACGaussianPolicyBase):
         self.d4_act = gspaces.FlipRot2dOnR2(N)
         self.n_rho1 = 2 if N==2 else 1
         self.n_hidden = n_hidden
-        self.img_conv = NonEquivariantEnc(2, n_hidden, N)
+        self.img_conv = NonEquivariantEnc(self.obs_channel, n_hidden, N)
         self.conv = torch.nn.Sequential(
             nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
                       nn.FieldType(self.d4_act, self.n_rho1 * [self.d4_act.irrep(1, 1)] + 1 * [self.d4_act.quotient_repr((None, 4))] + (action_dim * 2 - 3) * [self.d4_act.trivial_repr]),
