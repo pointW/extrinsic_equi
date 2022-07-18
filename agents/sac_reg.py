@@ -56,7 +56,7 @@ class SACReg(SAC):
         """
         networks = self.networks + [self.actor.conv, self.critic.critic_1, self.critic.critic_2]
         for i in range(len(networks)):
-            torch.save(self.networks[i].state_dict(), '{}_{}.pt'.format(path_pre, i))
+            torch.save(networks[i].state_dict(), '{}_{}.pt'.format(path_pre, i))
 
     def loadTransAndRewardModel(self, path_pre):
         """
