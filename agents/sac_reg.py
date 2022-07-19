@@ -94,7 +94,7 @@ class SACReg(SAC):
         batch_size, states, obs, action, rewards, next_states, next_obs, non_final_masks, step_lefts, is_experts = self._loadLossCalcDict()
         latent_state = self.critic.img_conv.forwardNormalTensor(obs)
         reward_pred = self.critic_reward_model(latent_state, action)
-        reward_model_loss = F.cross_entropy(reward_pred, rewards.long(), weight=torch.tensor([0.1, 1]).to(self.device))
+        reward_model_loss = F.cross_entropy(reward_pred, rewards.long())
 
         latent_next_state_pred = self.critic_transition_model(latent_state, action)
         latent_next_state_gc = self.critic_target.img_conv.forwardNormalTensor(next_obs).tensor.reshape(batch_size, -1).detach()
@@ -130,7 +130,7 @@ class SACReg(SAC):
         batch_size, states, obs, action, rewards, next_states, next_obs, non_final_masks, step_lefts, is_experts = self._loadLossCalcDict()
         latent_state = self.actor.img_conv.forwardNormalTensor(obs)
         reward_pred = self.actor_reward_model(latent_state, action)
-        reward_model_loss = F.cross_entropy(reward_pred, rewards.long(), weight=torch.tensor([0.1, 1]).to(self.device))
+        reward_model_loss = F.cross_entropy(reward_pred, rewards.long())
 
         latent_next_state_pred = self.actor_transition_model(latent_state, action)
         latent_next_state_gc = self.actor_target.img_conv.forwardNormalTensor(next_obs).tensor.reshape(batch_size, -1).detach()
@@ -220,7 +220,7 @@ class SACReg(SAC):
                 with torch.no_grad():
                     actor_latent_state = self.actor.img_conv.forwardNormalTensor(obs)
                 actor_reward_pred = self.actor_reward_model(actor_latent_state, action)
-                actor_reward_model_loss = F.cross_entropy(actor_reward_pred, rewards.long(), weight=torch.tensor([0.1, 1]).to(self.device))
+                actor_reward_model_loss = F.cross_entropy(actor_reward_pred, rewards.long())
                 self.actor_reward_optimizer.zero_grad()
                 actor_reward_model_loss.backward()
                 self.actor_reward_optimizer.step()
@@ -235,7 +235,7 @@ class SACReg(SAC):
                 with torch.no_grad():
                     critic_latent_state = self.critic.img_conv.forwardNormalTensor(obs)
                 critic_reward_pred = self.critic_reward_model(critic_latent_state, action)
-                critic_reward_model_loss = F.cross_entropy(critic_reward_pred, rewards.long(), weight=torch.tensor([0.1, 1]).to(self.device))
+                critic_reward_model_loss = F.cross_entropy(critic_reward_pred, rewards.long())
                 self.critic_reward_optimizer.zero_grad()
                 critic_reward_model_loss.backward()
                 self.critic_reward_optimizer.step()
@@ -255,7 +255,7 @@ class SACReg(SAC):
                 mini_batch_size, states, obs, action, rewards, next_states, next_obs, non_final_masks, step_lefts, is_experts = self._loadLossCalcDict()
                 actor_latent_state = self.actor.img_conv.forwardNormalTensor(obs)
                 actor_reward_pred = self.actor_reward_model(actor_latent_state, action)
-                actor_holdout_r_loss = F.cross_entropy(actor_reward_pred, rewards.long(), weight=torch.tensor([0.1, 1]).to(self.device))
+                actor_holdout_r_loss = F.cross_entropy(actor_reward_pred, rewards.long())
 
                 actor_latent_next_state_pred = self.actor_transition_model(actor_latent_state, action)
                 actor_latent_next_state_gc = self.actor.img_conv.forwardNormalTensor(next_obs).tensor.reshape(mini_batch_size, -1).detach()
@@ -263,7 +263,7 @@ class SACReg(SAC):
 
                 critic_latent_state = self.critic.img_conv.forwardNormalTensor(obs)
                 critic_reward_pred = self.critic_reward_model(critic_latent_state, action)
-                critic_holdout_r_loss = F.cross_entropy(critic_reward_pred, rewards.long(), weight=torch.tensor([0.1, 1]).to(self.device))
+                critic_holdout_r_loss = F.cross_entropy(critic_reward_pred, rewards.long())
 
                 critic_latent_next_state_pred = self.critic_transition_model(critic_latent_state, action)
                 critic_latent_next_state_gc = self.critic.img_conv.forwardNormalTensor(next_obs).tensor.reshape(mini_batch_size, -1).detach()
