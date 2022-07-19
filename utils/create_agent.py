@@ -228,6 +228,11 @@ def createAgent(test=False):
             elif model == 'equi_both_nogp':
                 actor = EquivariantSACActor((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
                 critic = EquivariantSACCriticNoGP((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
+            elif model == 'equi_both_d_w_enc':
+                actor = EquivariantSACActorDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
+                                                    n_hidden=n_hidden, initialize=initialize, N=equi_n, kernel_size=3).to(device)
+                critic = EquivariantSACCriticDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
+                                                      n_hidden=n_hidden, initialize=initialize, N=equi_n, kernel_size=3).to(device)
             else:
                 raise NotImplementedError
         # vector observation
