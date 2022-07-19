@@ -172,8 +172,8 @@ class SACReg(SAC):
 
     def updateReg(self, batch):
         self._loadBatchToDevice(batch)
-        qf1_loss, qf2_loss, critic_reward_model_loss, critic_transition_model_loss, td_error = self.updateCritic()
-        policy_loss, alpha_loss, alpha_tlogs, actor_reward_model_loss, actor_transition_model_loss = self.updateActorAndAlpha()
+        qf1_loss, qf2_loss, critic_reward_model_loss, critic_transition_model_loss, td_error = self.updateCriticReg()
+        policy_loss, alpha_loss, alpha_tlogs, actor_reward_model_loss, actor_transition_model_loss = self.updateActorAndAlphaReg()
 
         self.num_update += 1
         if self.num_update % self.target_update_interval == 0:
