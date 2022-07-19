@@ -252,7 +252,7 @@ def createAgent(test=False):
             agent = SACReg(lr=sac_lr, gamma=gamma, device=device, dx=dpos, dy=dpos, dz=dpos, dr=drot,
                            n_a=len(action_sequence), tau=tau, alpha=init_temp, policy_type='gaussian',
                            target_update_interval=1, automatic_entropy_tuning=True, obs_type=obs_type,
-                           model_loss_w=model_loss_w)
+                           model_loss_w=model_loss_w, train_reg=train_reg)
             if model == 'equi_both_d':
                 actor = EquivariantSACActorDihedral((obs_channel, crop_size, crop_size), len(action_sequence),
                                                     n_hidden=n_hidden, initialize=initialize, N=equi_n, kernel_size=3).to(device)

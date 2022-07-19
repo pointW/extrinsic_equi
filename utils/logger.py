@@ -79,6 +79,9 @@ class Logger(object):
         # Buffer of transitions
         self.transitions = list()
 
+        self.model_losses = list()
+        self.model_holdout_losses = list()
+
     def stepBookkeeping(self, rewards, done_masks):
         for i, r in enumerate(rewards.reshape(-1)):
             self.episode_rewards[i].append(r)
@@ -197,6 +200,42 @@ class Logger(object):
             plt.plot(xs, self.eval_rewards)
             plt.savefig(os.path.join(self.info_dir, 'eval_curve.pdf'))
             plt.close()
+
+    def saveModelLossCurve(self, n=100):
+        plt.style.use('ggplot')
+        losses = np.array(self.model_losses)
+        if len(losses) < n:
+            return
+        if len(losses.shape) == 1:
+            losses = np.expand_dims(losses, 0)
+        else:
+            losses = np.moveaxis(losses, 1, 0)
+        for loss in losses:
+            plt.plot(np.mean(list(windowed(loss, n)), axis=1))
+
+        plt.savefig(os.path.join(self.info_dir, 'model_loss_curve.pdf'))
+        plt.yscale('log')
+        plt.savefig(os.path.join(self.info_dir, 'model_loss_curve_log.pdf'))
+
+        plt.close()
+
+    def saveModelHoldoutLossCurve(self):
+        plt.style.use('ggplot')
+        losses = np.array(self.model_holdout_losses)
+        if len(losses) < 1:
+            return
+        if len(losses.shape) == 1:
+            losses = np.expand_dims(losses, 0)
+        else:
+            losses = np.moveaxis(losses, 1, 0)
+        for loss in losses:
+            plt.plot(loss)
+
+        plt.savefig(os.path.join(self.info_dir, 'model_holdout_loss_curve.pdf'))
+        plt.yscale('log')
+        plt.savefig(os.path.join(self.info_dir, 'model_holdout_loss_curve_log.pdf'))
+
+        plt.close()
 
     def saveModel(self, iteration, name, agent):
         '''
