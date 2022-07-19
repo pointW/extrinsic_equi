@@ -190,6 +190,8 @@ class SACReg(SAC):
             return super().update(batch)
 
     def trainModel(self, logger, data, batch_size, holdout_ratio=0.2, max_epochs_since_update=5):
+        if self.fix_trans_reward:
+            return
         self._max_epochs_since_update = max_epochs_since_update
         self._epochs_since_update = 0
         self._state = {}
