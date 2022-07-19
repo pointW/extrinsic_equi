@@ -84,6 +84,7 @@ training_group.add_argument('--load_t_r_model_pre', type=noneOrStr, default=None
 training_group.add_argument('--model_loss_w', type=float, default=0.1)
 training_group.add_argument('--train_reg', type=strToBool, default=False)
 training_group.add_argument('--train_model_freq', type=int, default=1000)
+training_group.add_argument('--train_model_max_epoch', type=int, default=100)
 
 eval_group = parser.add_argument_group('eval')
 eval_group.add_argument('--eval_freq', default=500, type=int)
@@ -212,6 +213,7 @@ train_simulate = args.train_simulate
 model_loss_w = args.model_loss_w
 train_reg = args.train_reg
 train_model_freq = args.train_model_freq
+train_model_max_epoch = args.train_model_max_epoch
 
 # eval
 eval_freq = args.eval_freq

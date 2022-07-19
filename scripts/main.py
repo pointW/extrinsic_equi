@@ -321,8 +321,8 @@ def train():
         if logger.num_steps % (num_processes * save_freq) == 0:
             saveModelAndInfo(logger, agent)
 
-        if alg.find('reg') > -1 and logger.num_training_steps > 0 and logger.num_training_steps % train_model_freq == 0:
-            agent.trainModel(logger, replay_buffer.sample(len(replay_buffer)), 256)
+        if alg.find('reg') > -1 and logger.num_training_steps > 0 and train_model_freq > 0 and logger.num_training_steps % train_model_freq == 0:
+            agent.trainModel(logger, replay_buffer.sample(len(replay_buffer)), 256, max_epochs=train_model_max_epoch)
 
     if eval_thread is not None:
         eval_thread.join()

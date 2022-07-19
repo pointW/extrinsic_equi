@@ -189,7 +189,7 @@ class SACReg(SAC):
         else:
             return super().update(batch)
 
-    def trainModel(self, logger, data, batch_size, holdout_ratio=0.2, max_epochs_since_update=5):
+    def trainModel(self, logger, data, batch_size, holdout_ratio=0.2, max_epochs_since_update=5, max_epochs=100):
         if self.fix_trans_reward:
             return
         self._max_epochs_since_update = max_epochs_since_update
@@ -210,7 +210,7 @@ class SACReg(SAC):
 
         pbar = tqdm(generator())
 
-        for epoch in itertools.count():
+        for epoch in range(max_epochs):
             train_idx = np.random.permutation(train_data.shape[0])
             for start_pos in range(0, train_data.shape[0], batch_size):
                 idx = train_idx[start_pos: start_pos + batch_size]
