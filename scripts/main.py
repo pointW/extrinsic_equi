@@ -235,7 +235,19 @@ def train():
     timer_start = time.time()
 
     states, obs = envs.reset()
-    while logger.num_training_steps < max_train_step:
+    while logger.num_training_steps <= max_train_step:
+        # perform model training
+        if alg.find('reg') > -1 and logger.num_training_steps > 0 and train_model_freq > 0 and logger.num_training_steps % train_model_freq == 0:
+            # initiate model learning if there is at least half of the time remaining on cluster. ow train on next job
+            if (time.time() - start_time)/3600 < time_limit/2:
+                logger.model_train_iter += 1
+                agent.trainModel(logger, replay_buffer.sample(len(replay_buffer)), 256, max_epochs=train_model_max_epoch)
+            else:
+                break
+
+        if logger.num_training_steps == max_train_step:
+            break
+            
         if fixed_eps:
             eps = final_eps
         else:
@@ -308,7 +320,7 @@ def train():
         if not no_bar:
             timer_final = time.time()
             description = 'Action Step:{}; Episode: {}; Reward:{:.03f}; Eval Reward:{:.03f}; Explore:{:.02f}; Loss:{:.03f}; Time:{:.03f}'.format(
-                logger.num_steps, logger.num_episodes, logger.getCurrentAvgReward(20), logger.eval_rewards[-1] if len(logger.eval_rewards) > 0 else 0, eps, float(logger.getCurrentLoss()),
+                logger.num_steps, logger.num_episodes, logger.getCurrentAvgReward(100), logger.eval_rewards[-1] if len(logger.eval_rewards) > 0 else 0, eps, float(logger.getCurrentLoss()),
                 timer_final - timer_start)
             pbar.set_description(description)
             timer_start = timer_final
@@ -325,9 +337,6 @@ def train():
 
         if logger.num_steps % (num_processes * save_freq) == 0:
             saveModelAndInfo(logger, agent)
-
-        if alg.find('reg') > -1 and logger.num_training_steps > 0 and train_model_freq > 0 and logger.num_training_steps % train_model_freq == 0:
-            agent.trainModel(logger, replay_buffer.sample(len(replay_buffer)), 256, max_epochs=train_model_max_epoch)
 
     if eval_thread is not None:
         eval_thread.join()
