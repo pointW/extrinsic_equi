@@ -184,22 +184,28 @@ class NonEquivariantEnc(torch.nn.Module):
             torch.nn.Conv2d(256, 512, kernel_size=3, padding=1),
             torch.nn.ReLU(inplace=True),
 
-            torch.nn.Conv2d(512, 512, kernel_size=3, padding=0),
-            torch.nn.ReLU(),
-            torch.nn.MaxPool2d(2),
-            torch.nn.Conv2d(512, 512, kernel_size=3, padding=0),
-            torch.nn.ReLU(),
-            torch.nn.Conv2d(512, n_hidden * N * 2, kernel_size=1, padding=0),
-            torch.nn.ReLU()
+            torch.nn.Flatten(),
+            torch.nn.Linear(512 * 8 * 8, n_hidden * N * 2),
+            torch.nn.ReLU(inplace=True),
+
+            # torch.nn.Conv2d(512, 512, kernel_size=3, padding=0),
+            # torch.nn.ReLU(),
+            # torch.nn.MaxPool2d(2),
+            # torch.nn.Conv2d(512, 512, kernel_size=3, padding=0),
+            # torch.nn.ReLU(),
+            # torch.nn.Conv2d(512, n_hidden * N * 2, kernel_size=1, padding=0),
+            # torch.nn.ReLU()
         )
 
     def forward(self, x):
         enc_out = self.conv(x)
+        enc_out = enc_out.reshape(x.shape[0], -1, 1, 1)
         enc_out = nn.GeometricTensor(enc_out, nn.FieldType(self.d4_act, self.n_hidden * [self.d4_act.regular_repr]))
         return enc_out
 
     def forwardNormalTensor(self, x):
         enc_out = self.conv(x)
+        enc_out = enc_out.reshape(x.shape[0], -1, 1, 1)
         enc_out = nn.GeometricTensor(enc_out, nn.FieldType(self.d4_act, self.n_hidden * [self.d4_act.regular_repr]))
         return enc_out
 
