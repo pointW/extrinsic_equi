@@ -20,6 +20,8 @@ from utils.parameters import *
 # Transition object
 from utils.torch_utils import ExpertTransition
 
+import joblib
+
 class Logger(object):
     '''
     Logger for train/test runs.
@@ -306,7 +308,7 @@ class Logger(object):
         checkpoint = {
             'args': args.__dict__,
             'agent': agent.getSaveState(),
-            'buffer_state': buffer.getSaveState(),
+            # 'buffer_state': buffer.getSaveState(),
             'logger':{
                 'env': self.env,
                 'num_envs': self.num_envs,
@@ -335,14 +337,17 @@ class Logger(object):
         if hasattr(agent, 'his'):
             checkpoint.update({'agent_his': agent.his})
         torch.save(checkpoint, os.path.join(self.checkpoint_dir, 'checkpoint.pt'))
+        joblib.dump(buffer.getSaveState(), os.path.join(self.checkpoint_dir, 'buffer.sav'))
 
     def loadCheckPoint(self, checkpoint_dir, envs, agent, buffer):
         print('loading checkpoint')
         checkpoint = torch.load(os.path.join(checkpoint_dir, 'checkpoint.pt'))
+        print('loading buffer file')
+        buffer_state = joblib.load(os.path.join(checkpoint_dir, 'buffer.sav'))
         print('agent loading')
         agent.loadFromState(checkpoint['agent'])
         print('buffer loading')
-        buffer.loadFromState(checkpoint['buffer_state'])
+        buffer.loadFromState(buffer_state)
         print('logger loading')
         self.env = checkpoint['logger']['env']
         self.num_envs = checkpoint['logger']['num_envs']
