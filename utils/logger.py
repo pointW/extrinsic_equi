@@ -79,6 +79,7 @@ class Logger(object):
         # Buffer of transitions
         self.transitions = list()
 
+        self.model_train_iter = 0
         self.model_losses = list()
         self.model_holdout_losses = list()
 
@@ -323,6 +324,9 @@ class Logger(object):
                 'success': self.success,
                 'step_reward': self.step_discounted_reward,
                 'step_success': self.step_success,
+                'model_train_iter': self.model_train_iter,
+                'model_losses': self.model_losses,
+                'model_holdout_losses': self.model_holdout_losses,
             },
             'torch_rng_state': torch.get_rng_state(),
             'torch_cuda_rng_state': torch.cuda.get_rng_state(),
@@ -356,6 +360,9 @@ class Logger(object):
         self.success = checkpoint['logger']['success']
         self.step_discounted_reward = checkpoint['logger']['step_reward']
         self.step_success = checkpoint['logger']['step_success']
+        self.model_train_iter = checkpoint['logger']['model_train_iter']
+        self.model_losses = checkpoint['logger']['model_losses']
+        self.model_holdout_losses = checkpoint['logger']['model_holdout_losses']
         torch.set_rng_state(checkpoint['torch_rng_state'])
         torch.cuda.set_rng_state(checkpoint['torch_cuda_rng_state'])
         np.random.set_state(checkpoint['np_rng_state'])
