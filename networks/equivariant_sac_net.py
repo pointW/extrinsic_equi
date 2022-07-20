@@ -160,42 +160,57 @@ class EquivariantEncoder128Dihedral(torch.nn.Module):
         return self.conv(geo)
 
 class NonEquivariantEnc(torch.nn.Module):
-    def __init__(self, n_in_channel, n_hidden, N):
+    def __init__(self, obs_shape=(2, 128, 128), n_hidden=64, N=4):
         super().__init__()
         self.d4_act = gspaces.FlipRot2dOnR2(N)
         self.n_hidden = n_hidden
-        self.conv = torch.nn.Sequential(
-            torch.nn.Conv2d(n_in_channel, 32, kernel_size=3, padding=1),
-            torch.nn.ReLU(inplace=True),
-            torch.nn.MaxPool2d(2),
-            # 64x64
-            torch.nn.Conv2d(32, 64, kernel_size=3, padding=1),
-            torch.nn.ReLU(inplace=True),
-            torch.nn.MaxPool2d(2),
-            # 32x32
-            torch.nn.Conv2d(64, 128, kernel_size=3, padding=1),
-            torch.nn.ReLU(inplace=True),
-            torch.nn.MaxPool2d(2),
-            # 16x16
-            torch.nn.Conv2d(128, 256, kernel_size=3, padding=1),
-            torch.nn.ReLU(inplace=True),
-            torch.nn.MaxPool2d(2),
-            # 8x8
-            torch.nn.Conv2d(256, 512, kernel_size=3, padding=1),
-            torch.nn.ReLU(inplace=True),
+        if obs_shape[1] == 128:
+            self.conv = torch.nn.Sequential(
+                torch.nn.Conv2d(obs_shape[0], 32, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 64x64
+                torch.nn.Conv2d(32, 64, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 32x32
+                torch.nn.Conv2d(64, 128, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 16x16
+                torch.nn.Conv2d(128, 256, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 8x8
+                torch.nn.Conv2d(256, 512, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
 
-            torch.nn.Flatten(),
-            torch.nn.Linear(512 * 8 * 8, n_hidden * N * 2),
-            torch.nn.ReLU(inplace=True),
+                torch.nn.Flatten(),
+                torch.nn.Linear(512 * 8 * 8, n_hidden * N * 2),
+                torch.nn.ReLU(inplace=True),
+            )
+        else:
+            self.conv = torch.nn.Sequential(
+                # 64x64
+                torch.nn.Conv2d(obs_shape[0], 64, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 32x32
+                torch.nn.Conv2d(64, 128, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 16x16
+                torch.nn.Conv2d(128, 256, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 8x8
+                torch.nn.Conv2d(256, 512, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
 
-            # torch.nn.Conv2d(512, 512, kernel_size=3, padding=0),
-            # torch.nn.ReLU(),
-            # torch.nn.MaxPool2d(2),
-            # torch.nn.Conv2d(512, 512, kernel_size=3, padding=0),
-            # torch.nn.ReLU(),
-            # torch.nn.Conv2d(512, n_hidden * N * 2, kernel_size=1, padding=0),
-            # torch.nn.ReLU()
-        )
+                torch.nn.Flatten(),
+                torch.nn.Linear(512 * 8 * 8, n_hidden * N * 2),
+                torch.nn.ReLU(inplace=True),
+            )
 
     def forward(self, x):
         enc_out = self.conv(x)
@@ -933,7 +948,7 @@ class EquivariantSACCriticDihedralWithNonEquiEnc(torch.nn.Module):
         self.obs_channel = obs_shape[0]
         self.n_hidden = n_hidden
         self.d4_act = gspaces.FlipRot2dOnR2(N)
-        self.img_conv = NonEquivariantEnc(self.obs_channel, n_hidden, N)
+        self.img_conv = NonEquivariantEnc(obs_shape, n_hidden, N)
         self.n_rho1 = 2 if N==2 else 1
         self.critic_1 = torch.nn.Sequential(
             nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr] + (action_dim - 3) * [self.d4_act.trivial_repr] + self.n_rho1 * [self.d4_act.irrep(1, 1)] + 1 * [self.d4_act.quotient_repr((None, 4))]),
@@ -1427,7 +1442,7 @@ class EquivariantSACActorDihedralWithNonEquiEnc(SACGaussianPolicyBase):
         self.d4_act = gspaces.FlipRot2dOnR2(N)
         self.n_rho1 = 2 if N==2 else 1
         self.n_hidden = n_hidden
-        self.img_conv = NonEquivariantEnc(self.obs_channel, n_hidden, N)
+        self.img_conv = NonEquivariantEnc(obs_shape, n_hidden, N)
         self.conv = torch.nn.Sequential(
             nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
                       nn.FieldType(self.d4_act, self.n_rho1 * [self.d4_act.irrep(1, 1)] + 1 * [self.d4_act.quotient_repr((None, 4))] + (action_dim * 2 - 3) * [self.d4_act.trivial_repr]),
