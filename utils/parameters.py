@@ -186,7 +186,6 @@ action_selection = args.action_selection
 planner_episode = args.planner_episode
 
 load_model_pre = args.load_model_pre
-load_t_r_model_pre = args.load_t_r_model_pre
 is_test = args.test
 note = args.note
 seed = args.seed
@@ -210,7 +209,10 @@ expert_aug_n = args.expert_aug_n
 simulate_n = args.simulate_n
 train_simulate = args.train_simulate
 
+load_t_r_model_pre = args.load_t_r_model_pre
 model_loss_w = args.model_loss_w
+if load_t_r_model_pre is not None:
+    args.train_reg = True
 train_reg = args.train_reg
 train_model_freq = args.train_model_freq
 train_model_max_epoch = args.train_model_max_epoch

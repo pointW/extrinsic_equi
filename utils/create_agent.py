@@ -39,6 +39,8 @@ def createAgent(test=False):
     print('initializing agent')
     if view_type.find('rgbd') > -1:
         obs_channel = 5
+    elif view_type.find('rgb') > -1:
+        obs_channel = 4
     else:
         obs_channel = 2
     if load_sub is not None or load_model_pre is not None or test:
