@@ -45,6 +45,7 @@ class SACEncoder(nn.Module):
                 torch.nn.Conv2d(512, out_dim, kernel_size=3),
                 torch.nn.ReLU(inplace=True),
                 # 1x1
+                torch.nn.Flatten()
             )
         else:
             self.conv = torch.nn.Sequential(
@@ -72,6 +73,7 @@ class SACEncoder(nn.Module):
                 torch.nn.Conv2d(512, out_dim, kernel_size=3),
                 torch.nn.ReLU(inplace=True),
                 # 1x1
+                torch.nn.Flatten()
             )
 
     def forward(self, x):
