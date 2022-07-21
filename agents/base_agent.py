@@ -170,6 +170,7 @@ class BaseAgent:
             self.networks[i].to('cpu')
             self.networks[i].load_state_dict(save_state['{}'.format(i)])
             self.networks[i].to(self.device)
+        for i in range(len(self.optimizers)):
             self.optimizers[i].load_state_dict(save_state['{}_optimizer'.format(i)])
         for i in range(len(self.target_networks)):
             self.target_networks[i].to('cpu')

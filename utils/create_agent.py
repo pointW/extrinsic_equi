@@ -31,9 +31,11 @@ from networks.curl_equi_sac_net import CURLEquiSACEncoder, CURLEquiSACCritic, CU
 from networks.cnn import DQNComCURL, DQNComCURLOri
 
 from agents.sac_reg import SACReg
-from agents.sac_share_enc import SACShareEnc
 from networks.equivariant_dynamic_model import EquivariantRewardModelDihedral, EquivariantTransitionModelDihedral
 from networks.equivariant_sac_net import EquivariantSACCriticDihedralWithNonEquiEnc, EquivariantSACActorDihedralWithNonEquiEnc
+
+from agents.sac_share_enc import SACShareEnc
+from networks.equivariant_sac_net import EquivariantSACActorDihedralLatentIn, EquivariantSACCriticDihedralLatentIn
 
 def createAgent(test=False):
     print('initializing agent')
@@ -285,13 +287,9 @@ def createAgent(test=False):
                                 n_a=len(action_sequence), tau=tau, alpha=init_temp, policy_type='gaussian',
                                 target_update_interval=1, automatic_entropy_tuning=True, obs_type=obs_type)
             enc = EquivariantEncoder128Dihedral(obs_channel, n_hidden, initialize, equi_n).to(device)
-            actor = EquivariantSACActorDihedralShareEnc(enc, (obs_channel, crop_size, crop_size), len(action_sequence),
-                                                        n_hidden=n_hidden, initialize=initialize, N=equi_n,
-                                                        kernel_size=3).to(device)
-            critic = EquivariantSACCriticDihedralShareEnc(enc, (obs_channel, crop_size, crop_size),
-                                                          len(action_sequence), n_hidden=n_hidden,
-                                                          initialize=initialize, N=equi_n, kernel_size=3).to(device)
-            agent.initNetwork(actor, critic)
+            actor = EquivariantSACActorDihedralLatentIn(len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
+            critic = EquivariantSACCriticDihedralLatentIn(len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
+            agent.initNetwork(enc, actor, critic)
 
     elif alg in ['bc_con']:
         agent = BehaviorCloningContinuous(lr=lr, gamma=gamma, device=device, dx=dpos, dy=dpos, dz=dpos, dr=drot,
