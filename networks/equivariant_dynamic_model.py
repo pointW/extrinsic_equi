@@ -6,9 +6,19 @@ class EquivariantRewardModelDihedral(torch.nn.Module):
         super().__init__()
         self.n_hidden = n_hidden
         self.d4_act = gspaces.FlipRot2dOnR2(N)
-        self.conv = nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr] + 2 * [self.d4_act.trivial_repr] + 1 * [self.d4_act.irrep(1, 1)] + 1 * [self.d4_act.quotient_repr((None, 4))]),
-                              nn.FieldType(self.d4_act, 1 * [self.d4_act.trivial_repr]),
-                              kernel_size=1, padding=0, initialize=initialize)
+        # self.conv = nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr] + 2 * [self.d4_act.trivial_repr] + 1 * [self.d4_act.irrep(1, 1)] + 1 * [self.d4_act.quotient_repr((None, 4))]),
+        #                       nn.FieldType(self.d4_act, 1 * [self.d4_act.trivial_repr]),
+        #                       kernel_size=1, padding=0, initialize=initialize)
+        self.conv = torch.nn.Sequential(
+            nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr] + 2 * [self.d4_act.trivial_repr] + 1 * [self.d4_act.irrep(1, 1)] + 1 * [self.d4_act.quotient_repr((None, 4))]),
+                      nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
+                      kernel_size=1, padding=0, initialize=initialize),
+            nn.ReLU(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]), inplace=True),
+            nn.GroupPooling(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr])),
+            nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.trivial_repr]),
+                      nn.FieldType(self.d4_act, 1 * [self.d4_act.trivial_repr]),
+                      kernel_size=1, padding=0, initialize=initialize)
+        )
 
     def forward(self, latent_state, act):
         batch_size = latent_state.shape[0]
@@ -26,9 +36,18 @@ class EquivariantTransitionModelDihedral(torch.nn.Module):
         super().__init__()
         self.n_hidden = n_hidden
         self.d4_act = gspaces.FlipRot2dOnR2(N)
-        self.conv = nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr] + 2 * [self.d4_act.trivial_repr] + 1 * [self.d4_act.irrep(1, 1)] + 1 * [self.d4_act.quotient_repr((None, 4))]),
-                              nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
-                              kernel_size=1, padding=0, initialize=initialize)
+        # self.conv = nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr] + 2 * [self.d4_act.trivial_repr] + 1 * [self.d4_act.irrep(1, 1)] + 1 * [self.d4_act.quotient_repr((None, 4))]),
+        #                       nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
+        #                       kernel_size=1, padding=0, initialize=initialize)
+        self.conv = torch.nn.Sequential(
+            nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr] + 2 * [self.d4_act.trivial_repr] + 1 * [self.d4_act.irrep(1, 1)] + 1 * [self.d4_act.quotient_repr((None, 4))]),
+                      nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
+                      kernel_size=1, padding=0, initialize=initialize),
+            nn.ReLU(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]), inplace=True),
+            nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
+                      nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
+                      kernel_size=1, padding=0, initialize=initialize)
+        )
 
     def forward(self, latent_state, act):
         batch_size = latent_state.shape[0]
