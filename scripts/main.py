@@ -239,7 +239,7 @@ def train():
         # perform model training
         if alg.find('reg') > -1 and logger.num_training_steps > 0 and train_model_freq > 0 and logger.num_training_steps % train_model_freq == 0:
             # initiate model learning if there is at least half of the time remaining on cluster. ow train on next job
-            if (time.time() - start_time)/3600 < time_limit/2:
+            if (time.time() - start_time)/3600 < time_limit/2 and logger.model_train_iter < logger.num_training_steps / train_model_freq:
                 logger.model_train_iter += 1
                 agent.trainModel(logger, replay_buffer.sample(len(replay_buffer)), 256, max_epochs=train_model_max_epoch)
             else:
@@ -247,7 +247,7 @@ def train():
 
         if logger.num_training_steps == max_train_step:
             break
-            
+
         if fixed_eps:
             eps = final_eps
         else:
