@@ -46,10 +46,16 @@ class SACShareEncReg(SACShareEnc):
         load the saved models
         :param path_pre: path prefix to the model
         """
-        for i in range(3, 5):
-            path = path_pre + '_{}.pt'.format(i)
-            print('loading {}'.format(path))
-            self.networks[i].load_state_dict(torch.load(path))
+        path = path_pre + '_{}.pt'.format(3)
+        print('loading {}'.format(path))
+        self.reward_model.load_state_dict(torch.load(path))
+        for parameter in self.reward_model.parameters():
+            parameter.requires_grad = False
+        path = path_pre + '_{}.pt'.format(4)
+        print('loading {}'.format(path))
+        self.transition_model.load_state_dict(torch.load(path))
+        for parameter in self.transition_model.parameters():
+            parameter.requires_grad = False
         self.fix_trans_reward = True
 
     def calcModelLoss(self, require_enc_grad=True):
@@ -70,6 +76,14 @@ class SACShareEncReg(SACShareEnc):
         transition_model_loss = F.mse_loss(latent_next_state_pred, latent_next_state_gc)
 
         return reward_model_loss, transition_model_loss
+
+    def updateModel(self, batch):
+        self._loadBatchToDevice(batch)
+        reward_model_loss, transition_model_loss = self.calcModelLoss()
+        self.critic_optimizer.zero_grad()
+        (reward_model_loss + transition_model_loss).backward()
+        self.critic_optimizer.step()
+        return 0, 0, 0, 0, 0, reward_model_loss.item(), transition_model_loss.item()
 
     def updateCriticReg(self):
         qf1_loss, qf2_loss, td_error = self.calcCriticLoss()
