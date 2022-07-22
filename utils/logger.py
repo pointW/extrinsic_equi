@@ -1,3 +1,4 @@
+import copy
 import os
 import time
 import datetime
@@ -199,8 +200,9 @@ class Logger(object):
     def saveEvalCurve(self):
         plt.style.use('ggplot')
         if len(self.eval_rewards) > 0:
-            xs = np.arange(eval_freq, (len(self.eval_rewards)+1) * eval_freq, eval_freq)
-            plt.plot(xs, self.eval_rewards)
+            eval_rewards = copy.deepcopy(self.eval_rewards)
+            xs = np.arange(eval_freq, (len(eval_rewards)+1) * eval_freq, eval_freq)
+            plt.plot(xs, eval_rewards)
             plt.savefig(os.path.join(self.info_dir, 'eval_curve.pdf'))
             plt.close()
 
