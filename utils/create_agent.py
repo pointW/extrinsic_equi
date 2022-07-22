@@ -35,7 +35,9 @@ from networks.equivariant_dynamic_model import EquivariantRewardModelDihedral, E
 from networks.equivariant_sac_net import EquivariantSACCriticDihedralWithNonEquiEnc, EquivariantSACActorDihedralWithNonEquiEnc
 
 from agents.sac_share_enc import SACShareEnc
-from networks.equivariant_sac_net import EquivariantSACActorDihedralLatentIn, EquivariantSACCriticDihedralLatentIn
+from networks.equivariant_sac_net import EquivariantSACActorDihedralLatentIn, EquivariantSACCriticDihedralLatentIn, NonEquivariantEnc
+
+from agents.sac_share_enc_reg import SACShareEncReg
 
 def createAgent(test=False):
     print('initializing agent')
@@ -290,6 +292,27 @@ def createAgent(test=False):
             actor = EquivariantSACActorDihedralLatentIn(len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
             critic = EquivariantSACCriticDihedralLatentIn(len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
             agent.initNetwork(enc, actor, critic)
+
+    elif alg in ['sac_share_enc_reg']:
+        sac_lr = (actor_lr, critic_lr)
+        if alg == 'sac_share_enc_reg':
+            agent = SACShareEncReg(lr=sac_lr, gamma=gamma, device=device, dx=dpos, dy=dpos, dz=dpos, dr=drot,
+                                   n_a=len(action_sequence), tau=tau, alpha=init_temp, policy_type='gaussian',
+                                   target_update_interval=1, automatic_entropy_tuning=True, obs_type=obs_type,
+                                   model_loss_w=model_loss_w, train_reg=train_reg)
+            if model == 'equi_both_d':
+                enc = EquivariantEncoder128Dihedral(obs_channel, n_hidden, initialize, equi_n).to(device)
+            elif model == 'equi_both_d_w_enc':
+                enc = NonEquivariantEnc((obs_channel, crop_size, crop_size), n_hidden, equi_n).to(device)
+            else:
+                raise NotImplementedError
+
+            actor = EquivariantSACActorDihedralLatentIn(len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
+            critic = EquivariantSACCriticDihedralLatentIn(len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
+            reward_model = EquivariantRewardModelDihedral(n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
+            transition_model = EquivariantTransitionModelDihedral(n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
+
+            agent.initNetwork(enc, actor, critic, reward_model, transition_model)
 
     elif alg in ['bc_con']:
         agent = BehaviorCloningContinuous(lr=lr, gamma=gamma, device=device, dx=dpos, dy=dpos, dz=dpos, dr=drot,
