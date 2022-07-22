@@ -288,9 +288,16 @@ def createAgent(test=False):
             agent = SACShareEnc(lr=sac_lr, gamma=gamma, device=device, dx=dpos, dy=dpos, dz=dpos, dr=drot,
                                 n_a=len(action_sequence), tau=tau, alpha=init_temp, policy_type='gaussian',
                                 target_update_interval=1, automatic_entropy_tuning=True, obs_type=obs_type)
-            enc = EquivariantEncoder128Dihedral(obs_channel, n_hidden, initialize, equi_n).to(device)
-            actor = EquivariantSACActorDihedralLatentIn(len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
-            critic = EquivariantSACCriticDihedralLatentIn(len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
+            if model == 'equi_both_d':
+                enc = EquivariantEncoder128Dihedral(obs_channel, n_hidden, initialize, equi_n).to(device)
+                actor = EquivariantSACActorDihedralLatentIn(len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
+                critic = EquivariantSACCriticDihedralLatentIn(len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
+            elif model == 'equi_both_d_w_enc':
+                enc = NonEquivariantEnc((obs_channel, crop_size, crop_size), n_hidden, equi_n).to(device)
+                actor = EquivariantSACActorDihedralLatentIn(len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
+                critic = EquivariantSACCriticDihedralLatentIn(len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
+            else:
+                raise NotImplementedError
             agent.initNetwork(enc, actor, critic)
 
     elif alg in ['sac_share_enc_reg']:
