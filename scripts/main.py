@@ -229,6 +229,22 @@ def train():
         pbar.close()
         logger.saveModel(0, 'pretrain', agent)
 
+    # pre train enc when transferring
+    if load_t_r_model_pre and pre_train_enc_step > 0:
+        if not no_bar:
+            pbar = tqdm(total=pre_train_enc_step)
+        for i in range(pre_train_enc_step):
+            if buffer_type[:3] == 'per':
+                batch, weights, batch_idxes = replay_buffer.sample(batch_size, per_beta)
+            else:
+                batch = replay_buffer.sample(batch_size)
+            loss = agent.updateModel(batch)
+            logger.trainingBookkeeping(loss, 0)
+            if not no_bar:
+                pbar.update(1)
+        if not no_bar:
+            pbar.close()
+
     if not no_bar:
         pbar = tqdm(total=max_train_step)
         pbar.set_description('Episodes:0; Reward:0.0; Explore:0.0; Loss:0.0; Time:0.0')
