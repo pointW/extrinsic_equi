@@ -90,6 +90,46 @@ class SACReg(SAC):
         ):
             t_param.data.copy_(tau * l_param.data + (1.0 - tau) * t_param.data)
 
+    def updateModel(self, batch):
+        self._loadBatchToDevice(batch)
+        mini_batch_size, states, obs, action, rewards, next_states, next_obs, non_final_masks, step_lefts, is_experts = self._loadLossCalcDict()
+        actor_latent_state = self.actor.img_conv.forwardNormalTensor(obs)
+        actor_reward_pred = self.actor_reward_model(actor_latent_state, action)
+        if self.r_model_loss_type == 'mse':
+            actor_reward_model_loss = F.mse_loss(actor_reward_pred, rewards)
+        else:
+            actor_reward_model_loss = F.binary_cross_entropy_with_logits(actor_reward_pred, rewards)
+        self.actor_reward_optimizer.zero_grad()
+        actor_reward_model_loss.backward(retain_graph=True)
+        self.actor_reward_optimizer.step()
+
+        actor_latent_next_state_pred = self.actor_transition_model(actor_latent_state, action)
+        actor_latent_next_state_gc = self.actor.img_conv.forwardNormalTensor(next_obs).tensor.reshape(mini_batch_size, -1).detach()
+        actor_transition_model_loss = F.mse_loss(actor_latent_next_state_pred, actor_latent_next_state_gc)
+        self.actor_transition_optimizer.zero_grad()
+        actor_transition_model_loss.backward()
+        self.actor_transition_optimizer.step()
+
+        critic_latent_state = self.critic.img_conv.forwardNormalTensor(obs)
+        critic_reward_pred = self.critic_reward_model(critic_latent_state, action)
+        if self.r_model_loss_type == 'mse':
+            critic_reward_model_loss = F.mse_loss(critic_reward_pred, rewards)
+        else:
+            critic_reward_model_loss = F.binary_cross_entropy_with_logits(critic_reward_pred, rewards)
+        self.critic_reward_optimizer.zero_grad()
+        critic_reward_model_loss.backward(retain_graph=True)
+        self.critic_reward_optimizer.step()
+
+        critic_latent_next_state_pred = self.critic_transition_model(critic_latent_state, action)
+        critic_latent_next_state_gc = self.critic.img_conv.forwardNormalTensor(next_obs).tensor.reshape(mini_batch_size,
+                                                                                                        -1).detach()
+        critic_transition_model_loss = F.mse_loss(critic_latent_next_state_pred, critic_latent_next_state_gc)
+        self.critic_transition_optimizer.zero_grad()
+        critic_transition_model_loss.backward()
+        self.critic_transition_optimizer.step()
+
+        return 0, 0, 0, 0, 0, critic_reward_model_loss.item(), critic_transition_model_loss.item(), actor_reward_model_loss.item(), actor_transition_model_loss.item()
+
     def updateCriticReg(self):
         qf1_loss, qf2_loss, td_error = self.calcCriticLoss()
         qf_loss = qf1_loss + qf2_loss
