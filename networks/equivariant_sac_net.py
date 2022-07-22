@@ -160,6 +160,58 @@ class EquivariantEncoder128Dihedral(torch.nn.Module):
         geo = nn.GeometricTensor(x, nn.FieldType(self.d4_act, self.obs_channel*[self.d4_act.trivial_repr]))
         return self.conv(geo)
 
+class EquivariantEncoder64Dihedral(torch.nn.Module):
+    def __init__(self, obs_channel=2, n_out=128, initialize=True, N=4):
+        super().__init__()
+        self.obs_channel = obs_channel
+        self.d4_act = gspaces.FlipRot2dOnR2(N)
+        self.conv = torch.nn.Sequential(
+            # 64x64
+            nn.R2Conv(nn.FieldType(self.d4_act, obs_channel * [self.d4_act.trivial_repr]),
+                      nn.FieldType(self.d4_act, n_out // 4 * [self.d4_act.regular_repr]),
+                      kernel_size=3, padding=1, initialize=initialize),
+            nn.ReLU(nn.FieldType(self.d4_act, n_out // 4 * [self.d4_act.regular_repr]), inplace=True),
+            nn.PointwiseMaxPool(nn.FieldType(self.d4_act, n_out // 4 * [self.d4_act.regular_repr]), 2),
+            # 32x32
+            nn.R2Conv(nn.FieldType(self.d4_act, n_out // 4 * [self.d4_act.regular_repr]),
+                      nn.FieldType(self.d4_act, n_out // 2 * [self.d4_act.regular_repr]),
+                      kernel_size=3, padding=1, initialize=initialize),
+            nn.ReLU(nn.FieldType(self.d4_act, n_out // 2 * [self.d4_act.regular_repr]), inplace=True),
+            nn.PointwiseMaxPool(nn.FieldType(self.d4_act, n_out // 2 * [self.d4_act.regular_repr]), 2),
+            # 16x16
+            nn.R2Conv(nn.FieldType(self.d4_act, n_out // 2 * [self.d4_act.regular_repr]),
+                      nn.FieldType(self.d4_act, n_out * [self.d4_act.regular_repr]),
+                      kernel_size=3, padding=1, initialize=initialize),
+            nn.ReLU(nn.FieldType(self.d4_act, n_out * [self.d4_act.regular_repr]), inplace=True),
+            nn.PointwiseMaxPool(nn.FieldType(self.d4_act, n_out * [self.d4_act.regular_repr]), 2),
+            # 8x8
+            nn.R2Conv(nn.FieldType(self.d4_act, n_out * [self.d4_act.regular_repr]),
+                      nn.FieldType(self.d4_act, n_out * 2 * [self.d4_act.regular_repr]),
+                      kernel_size=3, padding=1, initialize=initialize),
+            nn.ReLU(nn.FieldType(self.d4_act, n_out * 2 * [self.d4_act.regular_repr]), inplace=True),
+
+            nn.R2Conv(nn.FieldType(self.d4_act, n_out * 2 * [self.d4_act.regular_repr]),
+                      nn.FieldType(self.d4_act, n_out * [self.d4_act.regular_repr]),
+                      kernel_size=3, padding=0, initialize=initialize),
+            nn.ReLU(nn.FieldType(self.d4_act, n_out * [self.d4_act.regular_repr]), inplace=True),
+            nn.PointwiseMaxPool(nn.FieldType(self.d4_act, n_out * [self.d4_act.regular_repr]), 2),
+            # 3x3
+            nn.R2Conv(nn.FieldType(self.d4_act, n_out * [self.d4_act.regular_repr]),
+                      nn.FieldType(self.d4_act, n_out * [self.d4_act.regular_repr]),
+                      kernel_size=3, padding=0, initialize=initialize),
+            nn.ReLU(nn.FieldType(self.d4_act, n_out * [self.d4_act.regular_repr]), inplace=True),
+            # 1x1
+        )
+
+    def forward(self, x):
+        if type(x) is torch.Tensor:
+            x = nn.GeometricTensor(x, nn.FieldType(self.d4_act, self.obs_channel*[self.d4_act.trivial_repr]))
+        return self.conv(x)
+
+    def forwardNormalTensor(self, x):
+        geo = nn.GeometricTensor(x, nn.FieldType(self.d4_act, self.obs_channel*[self.d4_act.trivial_repr]))
+        return self.conv(geo)
+
 class NonEquivariantEnc(torch.nn.Module):
     def __init__(self, obs_shape=(2, 128, 128), n_hidden=64, N=4):
         super().__init__()
@@ -911,7 +963,10 @@ class EquivariantSACCriticDihedral(torch.nn.Module):
         self.obs_channel = obs_shape[0]
         self.n_hidden = n_hidden
         self.d4_act = gspaces.FlipRot2dOnR2(N)
-        enc = EquivariantEncoder128Dihedral if kernel_size == 3 else EquivariantEncoder128DihedralK5
+        if obs_shape[-1] == 64:
+            enc = EquivariantEncoder64Dihedral
+        else:
+            enc = EquivariantEncoder128Dihedral if kernel_size == 3 else EquivariantEncoder128DihedralK5
         self.img_conv = enc(self.obs_channel, n_hidden, initialize, N)
         self.n_rho1 = 2 if N==2 else 1
         self.critic_1 = torch.nn.Sequential(
@@ -1470,7 +1525,10 @@ class EquivariantSACActorDihedral(SACGaussianPolicyBase):
         self.action_dim = action_dim
         self.d4_act = gspaces.FlipRot2dOnR2(N)
         self.n_rho1 = 2 if N==2 else 1
-        enc = EquivariantEncoder128Dihedral if kernel_size == 3 else EquivariantEncoder128DihedralK5
+        if obs_shape[-1] == 64:
+            enc = EquivariantEncoder64Dihedral
+        else:
+            enc = EquivariantEncoder128Dihedral if kernel_size == 3 else EquivariantEncoder128DihedralK5
         self.img_conv = enc(self.obs_channel, n_hidden, initialize, N)
         self.conv = torch.nn.Sequential(
             nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
