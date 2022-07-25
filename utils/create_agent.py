@@ -232,9 +232,14 @@ def createAgent(test=False):
                 critic = EquivariantSACCriticNoGP((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
             elif model == 'equi_both_d_w_enc':
                 actor = EquivariantSACActorDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
-                                                    n_hidden=n_hidden, initialize=initialize, N=equi_n, kernel_size=3).to(device)
+                                                    n_hidden=n_hidden, initialize=initialize, N=equi_n, enc_type='fc').to(device)
                 critic = EquivariantSACCriticDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
-                                                      n_hidden=n_hidden, initialize=initialize, N=equi_n, kernel_size=3).to(device)
+                                                      n_hidden=n_hidden, initialize=initialize, N=equi_n, enc_type='fc').to(device)
+            elif model == 'equi_both_d_w_enc_equi':
+                actor = EquivariantSACActorDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
+                                                    n_hidden=n_hidden, initialize=initialize, N=equi_n, enc_type='equi').to(device)
+                critic = EquivariantSACCriticDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
+                                                      n_hidden=n_hidden, initialize=initialize, N=equi_n, enc_type='equi').to(device)
             else:
                 raise NotImplementedError
         # vector observation
@@ -267,9 +272,9 @@ def createAgent(test=False):
                                                       n_hidden=n_hidden, initialize=initialize, N=equi_n, kernel_size=3).to(device)
             elif model == 'equi_both_d_w_enc':
                 actor = EquivariantSACActorDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
-                                                    n_hidden=n_hidden, initialize=initialize, N=equi_n, kernel_size=3).to(device)
+                                                    n_hidden=n_hidden, initialize=initialize, N=equi_n, enc_type='fc').to(device)
                 critic = EquivariantSACCriticDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
-                                                      n_hidden=n_hidden, initialize=initialize, N=equi_n, kernel_size=3).to(device)
+                                                      n_hidden=n_hidden, initialize=initialize, N=equi_n, enc_type='fc').to(device)
 
             actor_reward_model = EquivariantRewardModelDihedral(n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
             actor_transition_model = EquivariantTransitionModelDihedral(n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
