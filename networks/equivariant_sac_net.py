@@ -6,6 +6,7 @@ from e2cnn import gspaces
 from e2cnn import nn
 
 from networks.sac_networks import SACGaussianPolicyBase
+from networks.ssm import SpatialSoftArgmax
 
 LOG_SIG_MAX = 2
 LOG_SIG_MIN = -20
@@ -207,7 +208,7 @@ class EquivariantEncoder64Dihedral(torch.nn.Module):
         geo = nn.GeometricTensor(x, nn.FieldType(self.d4_act, self.obs_channel*[self.d4_act.trivial_repr]))
         return self.conv(geo)
 
-class NonEquivariantEnc(torch.nn.Module):
+class NonEquivariantEncBase(torch.nn.Module):
     def __init__(self, obs_shape=(2, 128, 128), n_hidden=64, N=4):
         super().__init__()
         self.d4_act = gspaces.FlipRot2dOnR2(N)
@@ -232,10 +233,6 @@ class NonEquivariantEnc(torch.nn.Module):
                 # 8x8
                 torch.nn.Conv2d(256, 512, kernel_size=3, padding=1),
                 torch.nn.ReLU(inplace=True),
-
-                torch.nn.Flatten(),
-                torch.nn.Linear(512 * 8 * 8, n_hidden * N * 2),
-                torch.nn.ReLU(inplace=True),
             )
         else:
             self.conv = torch.nn.Sequential(
@@ -254,71 +251,56 @@ class NonEquivariantEnc(torch.nn.Module):
                 # 8x8
                 torch.nn.Conv2d(256, 512, kernel_size=3, padding=1),
                 torch.nn.ReLU(inplace=True),
-
-                torch.nn.Flatten(),
-                torch.nn.Linear(512 * 8 * 8, n_hidden * N * 2),
-                torch.nn.ReLU(inplace=True),
             )
 
+        self.reducer = None
+
     def forward(self, x):
-        enc_out = self.conv(x)
+        enc_out = self.reducer(self.conv(x))
         enc_out = enc_out.reshape(x.shape[0], -1, 1, 1)
         enc_out = nn.GeometricTensor(enc_out, nn.FieldType(self.d4_act, self.n_hidden * [self.d4_act.regular_repr]))
         return enc_out
 
     def forwardNormalTensor(self, x):
-        enc_out = self.conv(x)
-        enc_out = enc_out.reshape(x.shape[0], -1, 1, 1)
-        enc_out = nn.GeometricTensor(enc_out, nn.FieldType(self.d4_act, self.n_hidden * [self.d4_act.regular_repr]))
-        return enc_out
+        return self.forward(x)
+
+class NonEquivariantEncConv(NonEquivariantEncBase):
+    def __init__(self, obs_shape=(2, 128, 128), n_hidden=64, N=4):
+        super().__init__(obs_shape, n_hidden, N)
+        self.reducer = torch.nn.Sequential(
+            torch.nn.Conv2d(512, 512, kernel_size=3),
+            torch.nn.ReLU(inplace=True),
+            # 6x6
+            torch.nn.MaxPool2d(2),
+            # 3x3
+            torch.nn.Conv2d(512, n_hidden * N * 2, kernel_size=3),
+            torch.nn.ReLU(inplace=True),
+            # 1x1
+        )
+
+class NonEquivariantEncFC(NonEquivariantEncBase):
+    def __init__(self, obs_shape=(2, 128, 128), n_hidden=64, N=4):
+        super().__init__(obs_shape, n_hidden, N)
+        self.reducer = torch.nn.Sequential(
+            torch.nn.Flatten(),
+            torch.nn.Linear(512 * 8 * 8, n_hidden * N * 2),
+            torch.nn.ReLU(inplace=True),
+        )
+
+class NonEquivariantEncSSM(NonEquivariantEncBase):
+    def __init__(self, obs_shape=(2, 128, 128), n_hidden=64, N=4):
+        super().__init__(obs_shape, n_hidden, N)
+        self.reducer = torch.nn.Sequential(
+            SpatialSoftArgmax(),
+            torch.nn.Linear(512 * 2, n_hidden * N * 2),
+            torch.nn.ReLU(inplace=True),
+        )
 
 # cnn conv + equi conv
-class NonEquivariantEncEqui(torch.nn.Module):
+class NonEquivariantEncEqui(NonEquivariantEncBase):
     def __init__(self, obs_shape=(2, 128, 128), n_hidden=64, N=4):
-        super().__init__()
-        self.d4_act = gspaces.FlipRot2dOnR2(N)
-        self.n_hidden = n_hidden
-        if obs_shape[1] == 128:
-            self.conv = torch.nn.Sequential(
-                torch.nn.Conv2d(obs_shape[0], 32, kernel_size=3, padding=1),
-                torch.nn.ReLU(inplace=True),
-                torch.nn.MaxPool2d(2),
-                # 64x64
-                torch.nn.Conv2d(32, 64, kernel_size=3, padding=1),
-                torch.nn.ReLU(inplace=True),
-                torch.nn.MaxPool2d(2),
-                # 32x32
-                torch.nn.Conv2d(64, 128, kernel_size=3, padding=1),
-                torch.nn.ReLU(inplace=True),
-                torch.nn.MaxPool2d(2),
-                # 16x16
-                torch.nn.Conv2d(128, 256, kernel_size=3, padding=1),
-                torch.nn.ReLU(inplace=True),
-                torch.nn.MaxPool2d(2),
-                # 8x8
-                torch.nn.Conv2d(256, 512, kernel_size=3, padding=1),
-                torch.nn.ReLU(inplace=True),
-            )
-        else:
-            self.conv = torch.nn.Sequential(
-                # 64x64
-                torch.nn.Conv2d(obs_shape[0], 64, kernel_size=3, padding=1),
-                torch.nn.ReLU(inplace=True),
-                torch.nn.MaxPool2d(2),
-                # 32x32
-                torch.nn.Conv2d(64, 128, kernel_size=3, padding=1),
-                torch.nn.ReLU(inplace=True),
-                torch.nn.MaxPool2d(2),
-                # 16x16
-                torch.nn.Conv2d(128, 256, kernel_size=3, padding=1),
-                torch.nn.ReLU(inplace=True),
-                torch.nn.MaxPool2d(2),
-                # 8x8
-                torch.nn.Conv2d(256, 512, kernel_size=3, padding=1),
-                torch.nn.ReLU(inplace=True),
-            )
-
-        self.equi_conv = torch.nn.Sequential(
+        super().__init__(obs_shape, n_hidden, N)
+        self.reducer = torch.nn.Sequential(
             # 8x8
             nn.R2Conv(nn.FieldType(self.d4_act, 64 * [self.d4_act.regular_repr]),
                       nn.FieldType(self.d4_act, n_hidden * 2 * [self.d4_act.regular_repr]),
@@ -341,7 +323,7 @@ class NonEquivariantEncEqui(torch.nn.Module):
     def forward(self, x):
         cnn_out = self.conv(x)
         cnn_out = nn.GeometricTensor(cnn_out, nn.FieldType(self.d4_act, self.n_hidden * [self.d4_act.regular_repr]))
-        enc_out = self.equi_conv(cnn_out)
+        enc_out = self.reducer(cnn_out)
         return enc_out
 
     def forwardNormalTensor(self, x):
@@ -349,9 +331,13 @@ class NonEquivariantEncEqui(torch.nn.Module):
 
 def getNonEquivariantEnc(obs_shape=(2, 128, 128), n_hidden=64, N=4, enc_type='fc'):
     if enc_type == 'fc':
-        return NonEquivariantEnc(obs_shape, n_hidden, N)
+        return NonEquivariantEncFC(obs_shape, n_hidden, N)
     elif enc_type == 'equi':
         return NonEquivariantEncEqui(obs_shape, n_hidden, N)
+    elif enc_type == 'ssm':
+        return NonEquivariantEncSSM(obs_shape, n_hidden, N)
+    else:
+        raise NotImplementedError
 
 class EquivariantEncoder128DihedralK5(torch.nn.Module):
     def __init__(self, obs_channel=2, n_out=128, initialize=True, N=4):

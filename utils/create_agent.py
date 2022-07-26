@@ -240,6 +240,12 @@ def createAgent(test=False):
                                                     n_hidden=n_hidden, initialize=initialize, N=equi_n, enc_type='equi').to(device)
                 critic = EquivariantSACCriticDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
                                                       n_hidden=n_hidden, initialize=initialize, N=equi_n, enc_type='equi').to(device)
+            elif model == 'equi_both_d_w_enc_ssm':
+                actor = EquivariantSACActorDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
+                                                    n_hidden=n_hidden, initialize=initialize, N=equi_n, enc_type='ssm').to(device)
+                critic = EquivariantSACCriticDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
+                                                      n_hidden=n_hidden, initialize=initialize, N=equi_n, enc_type='ssm').to(device)
+
             else:
                 raise NotImplementedError
         # vector observation
