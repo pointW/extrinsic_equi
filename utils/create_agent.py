@@ -230,7 +230,7 @@ def createAgent(test=False):
             elif model == 'equi_both_nogp':
                 actor = EquivariantSACActor((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
                 critic = EquivariantSACCriticNoGP((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
-            elif model == 'equi_both_d_w_enc':
+            elif model == 'equi_both_d_w_enc' or model == 'equi_both_d_w_enc_fc':
                 actor = EquivariantSACActorDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
                                                     n_hidden=n_hidden, initialize=initialize, N=equi_n, enc_type='fc').to(device)
                 critic = EquivariantSACCriticDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
@@ -245,6 +245,12 @@ def createAgent(test=False):
                                                     n_hidden=n_hidden, initialize=initialize, N=equi_n, enc_type='ssm').to(device)
                 critic = EquivariantSACCriticDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
                                                       n_hidden=n_hidden, initialize=initialize, N=equi_n, enc_type='ssm').to(device)
+            elif model == 'equi_both_d_w_enc_res_fc':
+                actor = EquivariantSACActorDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
+                                                    n_hidden=n_hidden, initialize=initialize, N=equi_n, enc_type='fc', backbone='res').to(device)
+                critic = EquivariantSACCriticDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
+                                                      n_hidden=n_hidden, initialize=initialize, N=equi_n, enc_type='fc', backbone='res').to(device)
+
 
             else:
                 raise NotImplementedError
