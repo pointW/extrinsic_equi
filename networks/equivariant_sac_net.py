@@ -365,6 +365,7 @@ class NonEquivariantEncEqui(NonEquivariantEncBase):
             nn.R2Conv(nn.FieldType(self.d4_act, 512 * [self.d4_act.trivial_repr]),
                       nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
                       kernel_size=3, padding=1),
+            nn.ReLU(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]), inplace=True),
             nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
                       nn.FieldType(self.d4_act, n_hidden * 2 * [self.d4_act.regular_repr]),
                       kernel_size=3, padding=1),
