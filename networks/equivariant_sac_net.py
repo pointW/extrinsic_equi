@@ -326,6 +326,7 @@ class NonEquivariantEncFC(NonEquivariantEncBase):
             torch.nn.ReLU(inplace=True),
         )
 
+# ssm + fc
 class NonEquivariantEncSSM(NonEquivariantEncBase):
     def __init__(self, obs_shape=(2, 128, 128), n_hidden=64, N=4, backbone='cnn'):
         super().__init__(obs_shape, n_hidden, N, backbone)
@@ -335,13 +336,36 @@ class NonEquivariantEncSSM(NonEquivariantEncBase):
             torch.nn.ReLU(inplace=True),
         )
 
+# ssm + std->reg equi conv
+class NonEquivariantEncSSMStd(NonEquivariantEncBase):
+    def __init__(self, obs_shape=(2, 128, 128), n_hidden=64, N=4, backbone='cnn'):
+        super().__init__(obs_shape, n_hidden, N, backbone)
+        self.reducer = torch.nn.Sequential(
+            SpatialSoftArgmax(),
+        )
+        self.equi_conv = torch.nn.Sequential(
+            nn.R2Conv(nn.FieldType(self.d4_act, 512 * [self.d4_act.irrep(1, 1)]),
+                      nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
+                      kernel_size=1, padding=0),
+        )
+
+    def forward(self, x):
+        enc_out = self.reducer(self.conv(x))
+        enc_out = enc_out.reshape(x.shape[0], 512 * 2, 1, 1)
+        enc_out = nn.GeometricTensor(enc_out, nn.FieldType(self.d4_act, 512 * [self.d4_act.irrep(1, 1)]))
+        enc_out = self.equi_conv(enc_out)
+        return enc_out
+
 # cnn conv + equi conv
 class NonEquivariantEncEqui(NonEquivariantEncBase):
     def __init__(self, obs_shape=(2, 128, 128), n_hidden=64, N=4, backbone='cnn'):
         super().__init__(obs_shape, n_hidden, N, backbone)
         self.reducer = torch.nn.Sequential(
             # 8x8
-            nn.R2Conv(nn.FieldType(self.d4_act, 64 * [self.d4_act.regular_repr]),
+            nn.R2Conv(nn.FieldType(self.d4_act, 512 * [self.d4_act.trivial_repr]),
+                      nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
+                      kernel_size=3, padding=1),
+            nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
                       nn.FieldType(self.d4_act, n_hidden * 2 * [self.d4_act.regular_repr]),
                       kernel_size=3, padding=1),
             nn.ReLU(nn.FieldType(self.d4_act, n_hidden * 2 * [self.d4_act.regular_repr]), inplace=True),
@@ -361,7 +385,7 @@ class NonEquivariantEncEqui(NonEquivariantEncBase):
 
     def forward(self, x):
         cnn_out = self.conv(x)
-        cnn_out = nn.GeometricTensor(cnn_out, nn.FieldType(self.d4_act, self.n_hidden * [self.d4_act.regular_repr]))
+        cnn_out = nn.GeometricTensor(cnn_out, nn.FieldType(self.d4_act, 512 * [self.d4_act.trivial_repr]))
         enc_out = self.reducer(cnn_out)
         return enc_out
 
@@ -375,6 +399,8 @@ def getNonEquivariantEnc(obs_shape=(2, 128, 128), n_hidden=64, N=4, enc_type='fc
         return NonEquivariantEncEqui(obs_shape, n_hidden, N, backbone)
     elif enc_type == 'ssm':
         return NonEquivariantEncSSM(obs_shape, n_hidden, N, backbone)
+    elif enc_type == 'ssmstd':
+        return NonEquivariantEncSSMStd(obs_shape, n_hidden, N, backbone)
     else:
         raise NotImplementedError
 

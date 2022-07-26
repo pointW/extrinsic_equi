@@ -230,30 +230,30 @@ def createAgent(test=False):
             elif model == 'equi_both_nogp':
                 actor = EquivariantSACActor((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
                 critic = EquivariantSACCriticNoGP((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
-            elif model == 'equi_both_d_w_enc' or model == 'equi_both_d_w_enc_fc':
-                actor = EquivariantSACActorDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
-                                                    n_hidden=n_hidden, initialize=initialize, N=equi_n, enc_type='fc').to(device)
-                critic = EquivariantSACCriticDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
-                                                      n_hidden=n_hidden, initialize=initialize, N=equi_n, enc_type='fc').to(device)
-            elif model == 'equi_both_d_w_enc_equi':
-                actor = EquivariantSACActorDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
-                                                    n_hidden=n_hidden, initialize=initialize, N=equi_n, enc_type='equi').to(device)
-                critic = EquivariantSACCriticDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
-                                                      n_hidden=n_hidden, initialize=initialize, N=equi_n, enc_type='equi').to(device)
-            elif model == 'equi_both_d_w_enc_ssm':
-                actor = EquivariantSACActorDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
-                                                    n_hidden=n_hidden, initialize=initialize, N=equi_n, enc_type='ssm').to(device)
-                critic = EquivariantSACCriticDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
-                                                      n_hidden=n_hidden, initialize=initialize, N=equi_n, enc_type='ssm').to(device)
-            elif model == 'equi_both_d_w_enc_res_fc':
-                actor = EquivariantSACActorDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
-                                                    n_hidden=n_hidden, initialize=initialize, N=equi_n, enc_type='fc', backbone='res').to(device)
-                critic = EquivariantSACCriticDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
-                                                      n_hidden=n_hidden, initialize=initialize, N=equi_n, enc_type='fc', backbone='res').to(device)
-
-
             else:
-                raise NotImplementedError
+                if model == 'equi_both_d_w_enc' or model == 'equi_both_d_w_enc_fc':
+                    enc_type = 'fc'
+                    backbone = 'cnn'
+                elif model == 'equi_both_d_w_enc_equi':
+                    enc_type= 'equi'
+                    backbone = 'cnn'
+                elif model == 'equi_both_d_w_enc_ssm':
+                    enc_type = 'ssm'
+                    backbone = 'cnn'
+                elif model == 'equi_both_d_w_enc_ssmstd':
+                    enc_type = 'ssmstd'
+                    backbone = 'cnn'
+                elif model == 'equi_both_d_w_enc_res_fc':
+                    enc_type = 'fc'
+                    backbone = 'res'
+                else:
+                    raise NotImplementedError
+                actor = EquivariantSACActorDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
+                                                                  n_hidden=n_hidden, initialize=initialize, N=equi_n,
+                                                                  enc_type=enc_type, backbone=backbone).to(device)
+                critic = EquivariantSACCriticDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
+                                                                    n_hidden=n_hidden, initialize=initialize, N=equi_n,
+                                                                    enc_type=enc_type, backbone=backbone).to(device)
         # vector observation
         elif obs_type == 'vec':
             if model == 'cnn':
