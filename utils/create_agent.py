@@ -36,6 +36,8 @@ from networks.equivariant_dynamic_model import EquivariantRewardModelDihedral, E
 from networks.equivariant_sac_net import EquivariantSACCriticDihedralWithNonEquiEnc, EquivariantSACActorDihedralWithNonEquiEnc
 from networks.equivariant_sac_net import EquivariantPolicyDihedralWithNonEquiEnc
 
+from agents.sacfd2 import SACfD2
+
 def createAgent(test=False):
     print('initializing agent')
     if view_type.find('rgbd') > -1:
@@ -129,7 +131,7 @@ def createAgent(test=False):
             raise NotImplementedError
         agent.initNetwork(actor, critic, initialize_target=not test)
 
-    elif alg in ['sac', 'sacfd', 'sacfd_mean', 'sac_drq', 'sacfd_drq', 'sac_aux']:
+    elif alg in ['sac', 'sacfd', 'sacfd_mean', 'sacfd2', 'sac_drq', 'sacfd_drq', 'sac_aux']:
         sac_lr = (actor_lr, critic_lr)
         if alg == 'sac':
             agent = SAC(lr=sac_lr, gamma=gamma, device=device, dx=dpos, dy=dpos, dz=dpos, dr=drot,
@@ -145,6 +147,12 @@ def createAgent(test=False):
                           n_a=len(action_sequence), tau=tau, alpha=init_temp, policy_type='gaussian',
                           target_update_interval=1, automatic_entropy_tuning=True, obs_type=obs_type,
                           demon_w=demon_w, demon_l='mean')
+        elif alg == 'sacfd2':
+            agent = SACfD2(lr=sac_lr, gamma=gamma, device=device, dx=dpos, dy=dpos, dz=dpos, dr=drot,
+                           n_a=len(action_sequence), tau=tau, alpha=init_temp, policy_type='gaussian',
+                           target_update_interval=1, automatic_entropy_tuning=True, obs_type=obs_type,
+                           demon_w=demon_w, critic_demo_loss=critic_demo_loss, critic_n_neg=critic_n_neg,
+                           critic_demo_w=critic_demo_w, critic_margin_l=critic_margin_l)
         elif alg == 'sac_drq':
             agent = SACDrQ(lr=sac_lr, gamma=gamma, device=device, dx=dpos, dy=dpos, dz=dpos, dr=drot,
                            n_a=len(action_sequence), tau=tau, alpha=init_temp, policy_type='gaussian',

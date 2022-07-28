@@ -1158,16 +1158,37 @@ class EquivariantSACCriticDihedralWithNonEquiEnc(torch.nn.Module):
     def forward(self, obs, act):
         batch_size = obs.shape[0]
         enc_out = self.img_conv(obs)
-        dxy = act[:, 1:3]
-        inv_act = torch.cat((act[:, 0:1], act[:, 3:4]), dim=1)
-        dtheta = act[:, 4:5]
-        n_inv = inv_act.shape[1]
-        # dxy_geo = nn.GeometricTensor(dxy.reshape(batch_size, 2, 1, 1), nn.FieldType(self.c4_act, 1*[self.c4_act.irrep(1)]))
-        # inv_act_geo = nn.GeometricTensor(inv_act.reshape(batch_size, n_inv, 1, 1), nn.FieldType(self.c4_act, n_inv*[self.c4_act.trivial_repr]))
-        cat = torch.cat((enc_out.tensor, inv_act.reshape(batch_size, n_inv, 1, 1), dxy.reshape(batch_size, 2, 1, 1), dtheta.reshape(batch_size, 1, 1, 1), (-dtheta).reshape(batch_size, 1, 1, 1)), dim=1)
-        cat_geo = nn.GeometricTensor(cat, nn.FieldType(self.d4_act, self.n_hidden * [self.d4_act.regular_repr] + n_inv * [self.d4_act.trivial_repr] + self.n_rho1 * [self.d4_act.irrep(1, 1)] + 1 * [self.d4_act.quotient_repr((None, 4))]))
-        out1 = self.critic_1(cat_geo).tensor.reshape(batch_size, 1)
-        out2 = self.critic_2(cat_geo).tensor.reshape(batch_size, 1)
+        if len(act.shape) == 2:
+            dxy = act[:, 1:3]
+            inv_act = torch.cat((act[:, 0:1], act[:, 3:4]), dim=1)
+            dtheta = act[:, 4:5]
+            n_inv = inv_act.shape[1]
+            cat = torch.cat((enc_out.tensor, inv_act.reshape(batch_size, n_inv, 1, 1), dxy.reshape(batch_size, 2, 1, 1), dtheta.reshape(batch_size, 1, 1, 1), (-dtheta).reshape(batch_size, 1, 1, 1)), dim=1)
+            cat_geo = nn.GeometricTensor(cat, nn.FieldType(self.d4_act, self.n_hidden * [self.d4_act.regular_repr] + n_inv * [self.d4_act.trivial_repr] + self.n_rho1 * [self.d4_act.irrep(1, 1)] + 1 * [self.d4_act.quotient_repr((None, 4))]))
+            out1 = self.critic_1(cat_geo).tensor.reshape(batch_size, 1)
+            out2 = self.critic_2(cat_geo).tensor.reshape(batch_size, 1)
+            return out1, out2
+        else:
+            dxy = act[:, :, 1:3]
+            inv_act = torch.cat((act[:, :, 0:1], act[:, :, 3:4]), dim=2)
+            dtheta = act[:, :, 4:5]
+            n_inv = inv_act.shape[2]
+            enc_out.tensor.unsqueeze(1).expand(-1, act.size(1), -1, -1, -1)
+
+            fused = torch.cat([enc_out.tensor.unsqueeze(1).expand(-1, act.size(1), -1, -1, -1),
+                               inv_act.reshape(batch_size, act.size(1), n_inv, 1, 1),
+                               dxy.reshape(batch_size, act.size(1), 2, 1, 1),
+                               dtheta.reshape(batch_size, act.size(1), 1, 1, 1),
+                               (-dtheta).reshape(batch_size, act.size(1), 1, 1, 1)], dim=2)
+            B, N, D, _, _ = fused.size()
+            fused = fused.reshape(B * N, D, 1, 1)
+            fused_geo = nn.GeometricTensor(fused, nn.FieldType(self.d4_act,
+                                                               self.n_hidden * [self.d4_act.regular_repr] +
+                                                               n_inv * [self.d4_act.trivial_repr] +
+                                                               self.n_rho1 * [self.d4_act.irrep(1, 1)] +
+                                                               1 * [self.d4_act.quotient_repr((None, 4))]))
+            out1 = self.critic_1(fused_geo).tensor.reshape(B, N)
+            out2 = self.critic_2(fused_geo).tensor.reshape(B, N)
         return out1, out2
 
 class EquivariantSACCriticDihedralShareEnc(torch.nn.Module):

@@ -88,6 +88,11 @@ training_group.add_argument('--train_reg', type=strToBool, default=False)
 training_group.add_argument('--train_model_freq', type=int, default=1000)
 training_group.add_argument('--train_model_max_epoch', type=int, default=50)
 training_group.add_argument('--pre_train_enc_step', type=int, default=0)
+# sacfd2
+training_group.add_argument('--critic_demo_loss', type=str, default='margin', choices=['margin', 'ce'])
+training_group.add_argument('--critic_n_neg', type=int, default=2048)
+training_group.add_argument('--critic_demo_w', type=float, default=0.1)
+training_group.add_argument('--critic_margin_l', type=float, default=0.01)
 
 eval_group = parser.add_argument_group('eval')
 eval_group.add_argument('--eval_freq', default=500, type=int)
@@ -222,6 +227,11 @@ train_reg = args.train_reg
 train_model_freq = args.train_model_freq
 train_model_max_epoch = args.train_model_max_epoch
 pre_train_enc_step = args.pre_train_enc_step
+# sacfd2
+critic_demo_loss = args.critic_demo_loss
+critic_n_neg = args.critic_n_neg
+critic_demo_w = args.critic_demo_w
+critic_margin_l = args.critic_margin_l
 
 # eval
 eval_freq = args.eval_freq
