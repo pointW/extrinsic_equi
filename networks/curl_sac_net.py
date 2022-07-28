@@ -7,6 +7,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal
 from utils import torch_utils
+from networks.ssm import SpatialSoftArgmax
 
 LOG_SIG_MAX = 2
 LOG_SIG_MIN = -20
@@ -18,7 +19,7 @@ def tieWeights(src, trg):
     trg.bias = src.bias
 
 class CURLSACEncoder(nn.Module):
-    def __init__(self, input_shape=(2, 64, 64), output_dim=50):
+    def __init__(self, input_shape=(2, 64, 64), output_dim=50, ssm=False):
         super().__init__()
         if input_shape[1] == 128:
             self.conv = torch.nn.Sequential(
@@ -41,7 +42,6 @@ class CURLSACEncoder(nn.Module):
                 # 8x8
                 nn.Conv2d(256, 512, kernel_size=3, padding=1),
                 nn.ReLU(inplace=True),
-                nn.Flatten(),
             )
         else:
             self.conv = torch.nn.Sequential(
@@ -56,16 +56,23 @@ class CURLSACEncoder(nn.Module):
                 nn.MaxPool2d(2),
                 nn.Conv2d(256, 512, kernel_size=3, padding=1),
                 nn.ReLU(inplace=True),
-                nn.Flatten(),
             )
 
         x = torch.randn([1] + list(input_shape))
         conv_out_dim = self.conv(x).reshape(-1).shape[-1]
 
-        self.fc = torch.nn.Sequential(
-            torch.nn.Linear(conv_out_dim, output_dim),
-            nn.LayerNorm(output_dim),
-        )
+        if ssm:
+            self.fc = torch.nn.Sequential(
+                SpatialSoftArgmax(),
+                torch.nn.Linear(512*2, output_dim),
+                nn.LayerNorm(output_dim),
+            )
+        else:
+            self.fc = torch.nn.Sequential(
+                nn.Flatten(),
+                torch.nn.Linear(conv_out_dim, output_dim),
+                nn.LayerNorm(output_dim),
+            )
 
     def forward(self, x, detach=False):
         h = self.conv(x)

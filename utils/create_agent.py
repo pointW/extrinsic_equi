@@ -370,6 +370,9 @@ def createAgent(test=False):
         if model == 'cnn':
             actor = CURLSACGaussianPolicy(CURLSACEncoder((obs_channel, crop_size, crop_size)).to(device), action_dim=len(action_sequence)).to(device)
             critic = CURLSACCritic(CURLSACEncoder((obs_channel, crop_size, crop_size)).to(device), action_dim=len(action_sequence)).to(device)
+        elif model == 'cnn_ssm':
+            actor = CURLSACGaussianPolicy(CURLSACEncoder((obs_channel, crop_size, crop_size), ssm=True).to(device), action_dim=len(action_sequence)).to(device)
+            critic = CURLSACCritic(CURLSACEncoder((obs_channel, crop_size, crop_size), ssm=True).to(device), action_dim=len(action_sequence)).to(device)
         elif model == 'cnn_2':
             actor = CURLSACGaussianPolicy(CURLSACEncoder2((obs_channel, crop_size, crop_size)).to(device), action_dim=len(action_sequence)).to(device)
             critic = CURLSACCritic(CURLSACEncoder2((obs_channel, crop_size, crop_size)).to(device), action_dim=len(action_sequence)).to(device)
