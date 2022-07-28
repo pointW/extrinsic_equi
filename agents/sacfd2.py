@@ -28,11 +28,10 @@ class SACfD2(SACfD):
         samples = np.random.uniform(-1, 1, size=size)
         negatives = torch.as_tensor(samples, dtype=torch.float32, device=self.device).reshape(batch_size, self.critic_n_neg, -1)
 
-        with torch.no_grad():
-            qe1, qe2 = self.critic(obs, action)
-            qe1 = qe1.reshape(batch_size)
-            qe2 = qe2.reshape(batch_size)
-            qe = torch.min(qe1, qe2)
+        qe1, qe2 = self.critic(obs, action)
+        qe1 = qe1.reshape(batch_size)
+        qe2 = qe2.reshape(batch_size)
+        qe = torch.min(qe1, qe2)
 
         q_neg1, q_neg2 = self.critic(obs, negatives)
         losses = []
