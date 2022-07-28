@@ -34,7 +34,7 @@ from agents.sac_reg import SACReg
 from agents.sac_share_enc import SACShareEnc
 from networks.equivariant_dynamic_model import EquivariantRewardModelDihedral, EquivariantTransitionModelDihedral
 from networks.equivariant_sac_net import EquivariantSACCriticDihedralWithNonEquiEnc, EquivariantSACActorDihedralWithNonEquiEnc
-from networks.equivariant_sac_net import EquivariantPolicyDihedralWithNonEquiEnc
+from networks.equivariant_sac_net import EquivariantPolicyDihedralWithNonEquiEnc, EquivariantPolicyDihedral
 
 from agents.sacfd2 import SACfD2
 
@@ -333,6 +333,8 @@ def createAgent(test=False):
             policy = EquivariantPolicySO2((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, kernel_size=3).to(device)
         elif model == 'equi_both_o2':
             policy = EquivariantPolicyO2((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, kernel_size=3).to(device)
+        elif model == 'equi_d':
+            policy = EquivariantPolicyDihedral((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n, kernel_size=3).to(device)
         elif model == 'equi_both_d_w_enc_ssm':
             policy = EquivariantPolicyDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
                                                              n_hidden=n_hidden, initialize=initialize, N=equi_n,
