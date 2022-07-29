@@ -258,7 +258,7 @@ def createAgent(test=False):
                 elif model == 'equi_both_d_w_enc_res_fc':
                     enc_type = 'fc'
                     backbone = 'res'
-                elif model == 'equi_both_d_w_enc_ssm+equi':
+                elif model == 'equi_both_d_w_enc_ssm_equi':
                     enc_type = 'ssm+equi'
                     backbone = 'cnn'
                 else:
