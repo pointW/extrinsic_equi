@@ -153,9 +153,10 @@ class EquivariantEncoder128Dihedral(torch.nn.Module):
             # 1x1
         )
 
-    def forward(self, geo):
-        # geo = nn.GeometricTensor(x, nn.FieldType(self.c4_act, self.obs_channel*[self.c4_act.trivial_repr]))
-        return self.conv(geo)
+    def forward(self, x):
+        if type(x) is torch.Tensor:
+            x = nn.GeometricTensor(x, nn.FieldType(self.d4_act, self.obs_channel*[self.d4_act.trivial_repr]))
+        return self.conv(x)
     
 class EquivariantEncoder64Dihedral(torch.nn.Module):
     def __init__(self, obs_channel=2, n_out=128, initialize=True, N=4):
@@ -393,6 +394,29 @@ class NonEquivariantEncEqui(NonEquivariantEncBase):
     def forwardNormalTensor(self, x):
         return self.forward(x)
 
+class NonEquivariantEncSSMParallelEqui(NonEquivariantEncSSM):
+    def __init__(self, obs_shape=(2, 128, 128), n_hidden=64, N=4, backbone='cnn'):
+        super().__init__(obs_shape, n_hidden, N, backbone)
+        if obs_shape[-1] == 128:
+            self.equi_conv = EquivariantEncoder128Dihedral(obs_shape[0], n_hidden, N=N)
+        else:
+            self.equi_conv = EquivariantEncoder64Dihedral(obs_shape[0], n_hidden, N=N)
+        self.out_layer = torch.nn.Sequential(
+            nn.R2Conv(nn.FieldType(self.d4_act, 2 * n_hidden * [self.d4_act.regular_repr]),
+                      nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
+                      kernel_size=1, padding=0),
+            nn.ReLU(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr])),
+        )
+
+    def forward(self, x):
+        cnn_enc_out = self.reducer(self.conv(x))
+        cnn_enc_out = cnn_enc_out.reshape(x.shape[0], -1, 1, 1)
+
+        equi_enc_out = self.equi_conv(x)
+        cat = torch.cat([cnn_enc_out, equi_enc_out.tensor], dim=1)
+        cat = nn.GeometricTensor(cat, nn.FieldType(self.d4_act, 2 * self.n_hidden * [self.d4_act.regular_repr]))
+        return self.out_layer(cat)
+
 def getNonEquivariantEnc(obs_shape=(2, 128, 128), n_hidden=64, N=4, enc_type='fc', backbone='cnn'):
     if enc_type == 'fc':
         return NonEquivariantEncFC(obs_shape, n_hidden, N, backbone)
@@ -402,6 +426,8 @@ def getNonEquivariantEnc(obs_shape=(2, 128, 128), n_hidden=64, N=4, enc_type='fc
         return NonEquivariantEncSSM(obs_shape, n_hidden, N, backbone)
     elif enc_type == 'ssmstd':
         return NonEquivariantEncSSMStd(obs_shape, n_hidden, N, backbone)
+    elif enc_type == 'ssm+equi':
+        return NonEquivariantEncSSMParallelEqui(obs_shape, n_hidden, N, backbone)
     else:
         raise NotImplementedError
 
