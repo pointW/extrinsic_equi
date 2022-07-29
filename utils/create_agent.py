@@ -173,6 +173,9 @@ def createAgent(test=False):
             if model == 'cnn':
                 actor = SACGaussianPolicy((obs_channel, crop_size, crop_size), len(action_sequence)).to(device)
                 critic = SACCritic((obs_channel, crop_size, crop_size), len(action_sequence)).to(device)
+            elif model == 'cnn_ssm':
+                actor = SACGaussianPolicy((obs_channel, crop_size, crop_size), len(action_sequence), ssm=True).to(device)
+                critic = SACCritic((obs_channel, crop_size, crop_size), len(action_sequence), ssm=True).to(device)
             elif model == 'cnn_2':
                 actor = SACGaussianPolicy2((obs_channel, crop_size, crop_size), len(action_sequence)).to(device)
                 critic = SACCritic2((obs_channel, crop_size, crop_size), len(action_sequence)).to(device)

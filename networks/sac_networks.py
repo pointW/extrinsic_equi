@@ -7,13 +7,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal
 from utils import torch_utils
+from networks.ssm import SpatialSoftArgmax
 
 LOG_SIG_MAX = 2
 LOG_SIG_MIN = -20
 epsilon = 1e-6
 
 class SACEncoder(nn.Module):
-    def __init__(self, obs_shape=(2, 128, 128), out_dim=1024):
+    def __init__(self, obs_shape=(2, 128, 128), out_dim=1024, ssm=False):
         super().__init__()
         if obs_shape[1] == 128:
             self.conv = torch.nn.Sequential(
@@ -36,10 +37,6 @@ class SACEncoder(nn.Module):
                 # 8x8
                 nn.Conv2d(256, 512, kernel_size=3, padding=1),
                 nn.ReLU(inplace=True),
-
-                nn.Flatten(),
-                torch.nn.Linear(512 * 8 * 8, out_dim),
-                nn.ReLU(inplace=True),
             )
         else:
             self.conv = torch.nn.Sequential(
@@ -58,19 +55,28 @@ class SACEncoder(nn.Module):
                 # 8x8
                 nn.Conv2d(256, 512, kernel_size=3, padding=1),
                 nn.ReLU(inplace=True),
+            )
 
+        if ssm:
+            self.fc = torch.nn.Sequential(
+                SpatialSoftArgmax(),
+                torch.nn.Linear(512 * 2, out_dim),
+                nn.ReLU(inplace=True),
+            )
+        else:
+            self.fc = torch.nn.Sequential(
                 nn.Flatten(),
                 torch.nn.Linear(512 * 8 * 8, out_dim),
                 nn.ReLU(inplace=True),
             )
 
     def forward(self, x):
-        return self.conv(x)
+        return self.fc(self.conv(x))
 
 class SACCritic(nn.Module):
-    def __init__(self, obs_shape=(2, 128, 128), action_dim=5):
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, ssm=False):
         super().__init__()
-        self.state_conv_1 = SACEncoder(obs_shape, 1024)
+        self.state_conv_1 = SACEncoder(obs_shape, 1024, ssm)
 
         # Q1
         self.critic_fc_1 = torch.nn.Sequential(
@@ -113,9 +119,9 @@ class SACGaussianPolicyBase(nn.Module):
         return action, log_prob, mean
 
 class SACGaussianPolicy(SACGaussianPolicyBase):
-    def __init__(self, obs_shape=(2, 128, 128), action_dim=5):
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, ssm=False):
         super().__init__()
-        self.conv = SACEncoder(obs_shape, 1024)
+        self.conv = SACEncoder(obs_shape, 1024, ssm)
         self.mean_linear = nn.Linear(1024, action_dim)
         self.log_std_linear = nn.Linear(1024, action_dim)
 
