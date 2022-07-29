@@ -1152,34 +1152,40 @@ class EquivariantSACCriticDihedral(torch.nn.Module):
         return out1, out2
 
 class EquivariantSACCriticDihedralWithNonEquiEnc(torch.nn.Module):
-    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4, enc_type='fc', backbone='cnn'):
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, initialize=True, N=4, enc_type='fc', backbone='cnn', n_channels=[64, 64]):
         super().__init__()
+        assert obs_shape[1] in [128, 64]
+        n_layer = len(n_channels)
+        assert n_layer >= 2
         self.obs_channel = obs_shape[0]
-        self.n_hidden = n_hidden
+        self.n_hidden = n_channels[0]
         self.d4_act = gspaces.FlipRot2dOnR2(N)
-        self.img_conv = getNonEquivariantEnc(obs_shape, n_hidden, N, enc_type, backbone)
+        self.img_conv = getNonEquivariantEnc(obs_shape, n_channels[0], N, enc_type, backbone)
         self.n_rho1 = 2 if N==2 else 1
-        self.critic_1 = torch.nn.Sequential(
-            nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr] + (action_dim - 3) * [self.d4_act.trivial_repr] + self.n_rho1 * [self.d4_act.irrep(1, 1)] + 1 * [self.d4_act.quotient_repr((None, 4))]),
-                      nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
-                      kernel_size=1, padding=0, initialize=initialize),
-            nn.ReLU(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]), inplace=True),
-            nn.GroupPooling(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr])),
-            nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.trivial_repr]),
-                      nn.FieldType(self.d4_act, 1 * [self.d4_act.trivial_repr]),
-                      kernel_size=1, padding=0, initialize=initialize),
-        )
+        def getLayers():
+            layers = [
+                nn.R2Conv(nn.FieldType(self.d4_act, n_channels[0] * [self.d4_act.regular_repr] +
+                                       (action_dim - 3) * [self.d4_act.trivial_repr] +
+                                       self.n_rho1 * [self.d4_act.irrep(1, 1)] +
+                                       1 * [self.d4_act.quotient_repr((None, 4))]),
+                          nn.FieldType(self.d4_act, n_channels[1] * [self.d4_act.regular_repr]),
+                          kernel_size=1, padding=0, initialize=initialize),
+                nn.ReLU(nn.FieldType(self.d4_act, n_channels[1] * [self.d4_act.regular_repr]), inplace=True)
+            ]
+            for i in range(1, n_layer - 1):
+                layers.append(nn.R2Conv(nn.FieldType(self.d4_act, n_channels[i] * [self.d4_act.regular_repr]),
+                                        nn.FieldType(self.d4_act, n_channels[i+1] * [self.d4_act.regular_repr]),
+                                        kernel_size=1, padding=0, initialize=initialize))
+                layers.append(nn.ReLU(nn.FieldType(self.d4_act, n_channels[i+1] * [self.d4_act.regular_repr]), inplace=True))
+            layers.append(nn.GroupPooling(nn.FieldType(self.d4_act, n_channels[-1] * [self.d4_act.regular_repr])))
+            layers.append(nn.R2Conv(nn.FieldType(self.d4_act, n_channels[-1] * [self.d4_act.trivial_repr]),
+                                    nn.FieldType(self.d4_act, 1 * [self.d4_act.trivial_repr]),
+                                    kernel_size=1, padding=0, initialize=initialize))
+            return layers
 
-        self.critic_2 = torch.nn.Sequential(
-            nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr] + (action_dim - 3) * [self.d4_act.trivial_repr] + self.n_rho1 * [self.d4_act.irrep(1, 1)] + 1 * [self.d4_act.quotient_repr((None, 4))]),
-                      nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
-                      kernel_size=1, padding=0, initialize=initialize),
-            nn.ReLU(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]), inplace=True),
-            nn.GroupPooling(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr])),
-            nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.trivial_repr]),
-                      nn.FieldType(self.d4_act, 1 * [self.d4_act.trivial_repr]),
-                      kernel_size=1, padding=0, initialize=initialize),
-        )
+        self.critic_1 = torch.nn.Sequential(*getLayers())
+
+        self.critic_2 = torch.nn.Sequential(*getLayers())
 
     def forward(self, obs, act):
         batch_size = obs.shape[0]
@@ -1697,20 +1703,26 @@ class EquivariantPolicyDihedral(SACGaussianPolicyBase):
         return mean
 
 class EquivariantSACActorDihedralWithNonEquiEnc(SACGaussianPolicyBase):
-    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4, enc_type='fc', backbone='cnn'):
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, initialize=True, N=4, enc_type='fc', backbone='cnn', n_channels=[64]):
         super().__init__()
         assert obs_shape[1] in [128, 64]
+        n_layer = len(n_channels)
+        assert n_layer >= 1
         self.obs_channel = obs_shape[0]
         self.action_dim = action_dim
         self.d4_act = gspaces.FlipRot2dOnR2(N)
         self.n_rho1 = 2 if N==2 else 1
-        self.n_hidden = n_hidden
-        self.img_conv = getNonEquivariantEnc(obs_shape, n_hidden, N, enc_type, backbone)
-        self.conv = torch.nn.Sequential(
-            nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
-                      nn.FieldType(self.d4_act, self.n_rho1 * [self.d4_act.irrep(1, 1)] + 1 * [self.d4_act.quotient_repr((None, 4))] + (action_dim * 2 - 3) * [self.d4_act.trivial_repr]),
-                      kernel_size=1, padding=0, initialize=initialize)
-        )
+        self.img_conv = getNonEquivariantEnc(obs_shape, n_channels[0], N, enc_type, backbone)
+        layers = []
+        for i in range(n_layer - 1):
+            layers.append(nn.R2Conv(nn.FieldType(self.d4_act, n_channels[i] * [self.d4_act.regular_repr]),
+                                    nn.FieldType(self.d4_act, n_channels[i+1] * [self.d4_act.regular_repr]),
+                                    kernel_size=1, padding=0, initialize=initialize))
+            layers.append(nn.ReLU(nn.FieldType(self.d4_act, n_channels[i+1] * [self.d4_act.regular_repr]), inplace=True))
+        layers.append(nn.R2Conv(nn.FieldType(self.d4_act, n_channels[-1] * [self.d4_act.regular_repr]),
+                                nn.FieldType(self.d4_act, self.n_rho1 * [self.d4_act.irrep(1, 1)] + 1 * [self.d4_act.quotient_repr((None, 4))] + (action_dim * 2 - 3) * [self.d4_act.trivial_repr]),
+                                kernel_size=1, padding=0, initialize=initialize))
+        self.conv = torch.nn.Sequential(*layers)
 
     def forward(self, obs):
         batch_size = obs.shape[0]

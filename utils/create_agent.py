@@ -264,11 +264,11 @@ def createAgent(test=False):
                 else:
                     raise NotImplementedError
                 actor = EquivariantSACActorDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
-                                                                  n_hidden=n_hidden, initialize=initialize, N=equi_n,
-                                                                  enc_type=enc_type, backbone=backbone).to(device)
+                                                                  initialize=initialize, N=equi_n, enc_type=enc_type,
+                                                                  backbone=backbone, n_channels=actor_channels).to(device)
                 critic = EquivariantSACCriticDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
-                                                                    n_hidden=n_hidden, initialize=initialize, N=equi_n,
-                                                                    enc_type=enc_type, backbone=backbone).to(device)
+                                                                    initialize=initialize, N=equi_n, enc_type=enc_type,
+                                                                    backbone=backbone, n_channels=critic_channels).to(device)
         # vector observation
         elif obs_type == 'vec':
             if model == 'cnn':

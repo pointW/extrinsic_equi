@@ -88,6 +88,8 @@ training_group.add_argument('--train_reg', type=strToBool, default=False)
 training_group.add_argument('--train_model_freq', type=int, default=1000)
 training_group.add_argument('--train_model_max_epoch', type=int, default=50)
 training_group.add_argument('--pre_train_enc_step', type=int, default=0)
+training_group.add_argument('--actor_channels', type=str, default='64')
+training_group.add_argument('--critic_channels', type=str, default='64,64')
 # sacfd2
 training_group.add_argument('--critic_demo_loss', type=str, default='margin', choices=['margin', 'ce'])
 training_group.add_argument('--critic_n_neg', type=int, default=2048)
@@ -227,6 +229,10 @@ train_reg = args.train_reg
 train_model_freq = args.train_model_freq
 train_model_max_epoch = args.train_model_max_epoch
 pre_train_enc_step = args.pre_train_enc_step
+actor_channels = args.actor_channels
+actor_channels = [int(c) for c in actor_channels.split(',')]
+critic_channels = args.critic_channels
+critic_channels = [int(c) for c in critic_channels.split(',')]
 # sacfd2
 critic_demo_loss = args.critic_demo_loss
 critic_n_neg = args.critic_n_neg
