@@ -36,6 +36,8 @@ from networks.equivariant_dynamic_model import EquivariantRewardModelDihedral, E
 from networks.equivariant_sac_net import EquivariantSACCriticDihedralWithNonEquiEnc, EquivariantSACActorDihedralWithNonEquiEnc
 from networks.equivariant_sac_net import EquivariantPolicyDihedralWithNonEquiEnc, EquivariantPolicyDihedral
 
+from networks.curl_equi_sac_net import CURLEquiSACActorDihedral, CURLEquiSACCriticDihedral
+
 from agents.sacfd2 import SACfD2
 
 def createAgent(test=False):
@@ -354,6 +356,8 @@ def createAgent(test=False):
         curl_sac_lr = [actor_lr, critic_lr, lr, lr]
         if model == 'equi_both':
             z_dim = n_hidden * equi_n
+        elif model == 'equi_both_d_w_enc_ssm':
+            z_dim = n_hidden * equi_n * 2
         else:
             z_dim = 50
 
@@ -377,8 +381,17 @@ def createAgent(test=False):
             actor = CURLSACGaussianPolicy(CURLSACEncoder((obs_channel, crop_size, crop_size)).to(device), action_dim=len(action_sequence)).to(device)
             critic = CURLSACCritic(CURLSACEncoder((obs_channel, crop_size, crop_size)).to(device), action_dim=len(action_sequence)).to(device)
         elif model == 'cnn_ssm':
-            actor = CURLSACGaussianPolicy(CURLSACEncoder((obs_channel, crop_size, crop_size), ssm=True).to(device), action_dim=len(action_sequence)).to(device)
-            critic = CURLSACCritic(CURLSACEncoder((obs_channel, crop_size, crop_size), ssm=True).to(device), action_dim=len(action_sequence)).to(device)
+            actor = CURLSACGaussianPolicy(CURLSACEncoder((obs_channel, crop_size, crop_size), output_dim=z_dim, ssm=True).to(device), encoder_output_dim=z_dim, action_dim=len(action_sequence)).to(device)
+            critic = CURLSACCritic(CURLSACEncoder((obs_channel, crop_size, crop_size), output_dim=z_dim, ssm=True).to(device), encoder_output_dim=z_dim, action_dim=len(action_sequence)).to(device)
+        elif model == 'equi_both_d_w_enc_ssm':
+            actor = CURLEquiSACActorDihedral(CURLSACEncoder((obs_channel, crop_size, crop_size),
+                                                            output_dim=n_hidden * equi_n * 2, ssm=True).to(device),
+                                             action_dim=len(action_sequence), n_hidden=n_hidden, initialize=initialize,
+                                             N=equi_n).to(device)
+            critic = CURLEquiSACCriticDihedral(CURLSACEncoder((obs_channel, crop_size, crop_size),
+                                                              output_dim=n_hidden * equi_n * 2, ssm=True).to(device),
+                                               action_dim=len(action_sequence), n_hidden=n_hidden, initialize=initialize,
+                                               N=equi_n).to(device)
         elif model == 'cnn_2':
             actor = CURLSACGaussianPolicy(CURLSACEncoder2((obs_channel, crop_size, crop_size)).to(device), action_dim=len(action_sequence)).to(device)
             critic = CURLSACCritic(CURLSACEncoder2((obs_channel, crop_size, crop_size)).to(device), action_dim=len(action_sequence)).to(device)

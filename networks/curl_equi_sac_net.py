@@ -192,6 +192,124 @@ class CURLEquiSACGaussianPolicy(torch.nn.Module):
         mean = torch.tanh(mean) * self.action_scale + self.action_bias
         return action, log_prob, mean
 
+class CURLEquiSACCriticDihedral(torch.nn.Module):
+    def __init__(self, encoder, action_dim=5, n_hidden=64, initialize=True, N=4):
+        super().__init__()
+        self.encoder = encoder
+        self.n_hidden = n_hidden
+        self.d4_act = gspaces.FlipRot2dOnR2(N)
+        self.n_rho1 = 2 if N==2 else 1
+
+        # Q1
+        self.q1 = torch.nn.Sequential(
+            nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr] + (action_dim - 3) * [
+                self.d4_act.trivial_repr] + self.n_rho1 * [self.d4_act.irrep(1, 1)] + 1 * [
+                                       self.d4_act.quotient_repr((None, 4))]),
+                      nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
+                      kernel_size=1, padding=0, initialize=initialize),
+            nn.ReLU(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]), inplace=True),
+            nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
+                      nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
+                      kernel_size=1, padding=0, initialize=initialize),
+            nn.ReLU(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]), inplace=True),
+            nn.GroupPooling(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr])),
+            nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.trivial_repr]),
+                      nn.FieldType(self.d4_act, 1 * [self.d4_act.trivial_repr]),
+                      kernel_size=1, padding=0, initialize=initialize),
+        )
+
+        self.q2 = torch.nn.Sequential(
+            nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr] + (action_dim - 3) * [
+                self.d4_act.trivial_repr] + self.n_rho1 * [self.d4_act.irrep(1, 1)] + 1 * [
+                                       self.d4_act.quotient_repr((None, 4))]),
+                      nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
+                      kernel_size=1, padding=0, initialize=initialize),
+            nn.ReLU(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]), inplace=True),
+            nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
+                      nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
+                      kernel_size=1, padding=0, initialize=initialize),
+            nn.ReLU(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]), inplace=True),
+            nn.GroupPooling(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr])),
+            nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.trivial_repr]),
+                      nn.FieldType(self.d4_act, 1 * [self.d4_act.trivial_repr]),
+                      kernel_size=1, padding=0, initialize=initialize),
+        )
+
+    def forward(self, obs, act, detach_encoder=False):
+        batch_size = obs.shape[0]
+        enc_out = self.encoder(obs, detach=detach_encoder)
+        enc_out = enc_out.reshape(batch_size, -1, 1, 1)
+        enc_out_geo = nn.GeometricTensor(enc_out, nn.FieldType(self.d4_act, self.n_hidden*[self.d4_act.regular_repr]))
+        dxy = act[:, 1:3]
+        inv_act = torch.cat((act[:, 0:1], act[:, 3:4]), dim=1)
+        dtheta = act[:, 4:5]
+        n_inv = inv_act.shape[1]
+        cat = torch.cat((enc_out_geo.tensor, inv_act.reshape(batch_size, n_inv, 1, 1), dxy.reshape(batch_size, 2, 1, 1),
+                         dtheta.reshape(batch_size, 1, 1, 1), (-dtheta).reshape(batch_size, 1, 1, 1)), dim=1)
+        cat_geo = nn.GeometricTensor(cat, nn.FieldType(self.d4_act,
+                                                       self.n_hidden * [self.d4_act.regular_repr] + n_inv * [
+                                                           self.d4_act.trivial_repr] + self.n_rho1 * [
+                                                           self.d4_act.irrep(1, 1)] + 1 * [
+                                                           self.d4_act.quotient_repr((None, 4))]))
+        out1 = self.q1(cat_geo).tensor.reshape(batch_size, 1)
+        out2 = self.q2(cat_geo).tensor.reshape(batch_size, 1)
+        return out1, out2
+
+class CURLEquiSACActorDihedral(torch.nn.Module):
+    def __init__(self, encoder, action_dim=5, n_hidden=64, initialize=True, N=4):
+        super().__init__()
+        self.encoder = encoder
+
+        self.n_hidden = n_hidden
+        self.action_dim = action_dim
+        self.d4_act = gspaces.FlipRot2dOnR2(N)
+        self.n_rho1 = 2 if N==2 else 1
+
+        self.conv = torch.nn.Sequential(
+            nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
+                      nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
+                      kernel_size=1, padding=0, initialize=initialize),
+            nn.ReLU(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]), inplace=True),
+            nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
+                      nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
+                      kernel_size=1, padding=0, initialize=initialize),
+            nn.ReLU(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]), inplace=True),
+            nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
+                      nn.FieldType(self.d4_act, self.n_rho1 * [self.d4_act.irrep(1, 1)] + 1 * [self.d4_act.quotient_repr((None, 4))] + (action_dim * 2 - 3) * [self.d4_act.trivial_repr]),
+                      kernel_size=1, padding=0, initialize=initialize)
+        )
+
+        self.action_scale = torch.tensor(1.)
+        self.action_bias = torch.tensor(0.)
+
+    def forward(self, obs, detach_encoder=False):
+        batch_size = obs.shape[0]
+        enc_out = self.encoder(obs, detach=detach_encoder)
+        enc_out = enc_out.reshape(batch_size, -1, 1, 1)
+        enc_out_geo = nn.GeometricTensor(enc_out, nn.FieldType(self.d4_act, self.n_hidden*[self.d4_act.regular_repr]))
+        conv_out = self.conv(enc_out_geo).tensor.reshape(batch_size, -1)
+        dxy = conv_out[:, 0:2]
+        dtheta = conv_out[:, 2:3] - conv_out[:, 3:4]
+        inv_act = conv_out[:, 4:self.action_dim + 1]
+        mean = torch.cat((inv_act[:, 0:1], dxy, inv_act[:, 1:2], dtheta), dim=1)
+        log_std = conv_out[:, self.action_dim + 1:]
+        log_std = torch.clamp(log_std, min=LOG_SIG_MIN, max=LOG_SIG_MAX)
+        return mean, log_std
+
+    def sample(self, x, detach_encoder=False):
+        mean, log_std = self.forward(x, detach_encoder=detach_encoder)
+        std = log_std.exp()
+        normal = Normal(mean, std)
+        x_t = normal.rsample()  # for reparameterization trick (mean + std * N(0,1))
+        y_t = torch.tanh(x_t)
+        action = y_t * self.action_scale + self.action_bias
+        log_prob = normal.log_prob(x_t)
+        # Enforcing Action Bound
+        log_prob -= torch.log(self.action_scale * (1 - y_t.pow(2)) + epsilon)
+        log_prob = log_prob.sum(1, keepdim=True)
+        mean = torch.tanh(mean) * self.action_scale + self.action_bias
+        return action, log_prob, mean
+
 encoder = CURLEquiSACEncoder(output_dim=64, initialize=False)
 actor = CURLEquiSACGaussianPolicy(encoder, encoder_output_dim=64, initialize=False)
 critic = CURLEquiSACCritic(encoder, encoder_output_dim=64, initialize=False)
