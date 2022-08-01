@@ -40,6 +40,8 @@ from networks.curl_equi_sac_net import CURLEquiSACActorDihedral, CURLEquiSACCrit
 
 from agents.sacfd2 import SACfD2
 
+from networks.equivariant_sac_net import EquivariantSACActorFlip, EquivariantSACCriticFlip
+
 def createAgent(test=False):
     print('initializing agent')
     if view_type.find('rgbd') > -1:
@@ -193,6 +195,9 @@ def createAgent(test=False):
             elif model == 'equi_both_d':
                 actor = EquivariantSACActorDihedral((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n, kernel_size=3).to(device)
                 critic = EquivariantSACCriticDihedral((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n, kernel_size=3).to(device)
+            elif model == 'equi_both_f':
+                actor = EquivariantSACActorFlip((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, kernel_size=3).to(device)
+                critic = EquivariantSACCriticFlip((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, kernel_size=3).to(device)
             elif model == 'equi_both_d_share_enc':
                 enc = EquivariantEncoder128Dihedral(obs_channel, n_hidden, initialize, equi_n).to(device)
                 actor = EquivariantSACActorDihedralShareEnc(enc, (obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n, kernel_size=3).to(device)
