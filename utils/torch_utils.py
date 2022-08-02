@@ -415,17 +415,15 @@ def augmentTransitionCnVec(d):
                             next_obs, d.done, d.step_left, d.expert)
 
 def augmentTransitionShift(d):
-    obs = d.obs[0]
-    next_obs = d.next_obs[0]
+    obs = d.obs
+    next_obs = d.next_obs
     heightmap_size = obs.shape[-1]
-    padded_obs = np.pad(obs, [4, 4], mode='edge')
-    padded_next_obs = np.pad(next_obs, [4, 4], mode='edge')
+    padded_obs = np.pad(obs, ((0, 0), (4, 4), (4, 4)), mode='edge')
+    padded_next_obs = np.pad(next_obs, ((0, 0), (4, 4), (4, 4)), mode='edge')
     mag_x = np.random.randint(8)
     mag_y = np.random.randint(8)
-    obs = padded_obs[mag_x:mag_x + heightmap_size, mag_y:mag_y + heightmap_size]
-    next_obs = padded_next_obs[mag_x:mag_x + heightmap_size, mag_y:mag_y + heightmap_size]
-    obs = obs.reshape(1, *obs.shape)
-    next_obs = next_obs.reshape(1, *next_obs.shape)
+    obs = padded_obs[:, mag_x:mag_x + heightmap_size, mag_y:mag_y + heightmap_size]
+    next_obs = padded_next_obs[:, mag_x:mag_x + heightmap_size, mag_y:mag_y + heightmap_size]
     return ExpertTransition(d.state, obs, d.action, d.reward, d.next_state,
                             next_obs, d.done, d.step_left, d.expert)
 
