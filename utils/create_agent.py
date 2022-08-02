@@ -41,6 +41,8 @@ from networks.curl_equi_sac_net import CURLEquiSACActorDihedral, CURLEquiSACCrit
 from agents.sacfd2 import SACfD2
 
 from networks.equivariant_sac_net import EquivariantSACActorFlip, EquivariantSACCriticFlip
+from networks.equivariant_sac_net import EquivariantSACActorTrivial, EquivariantSACCriticTrivial
+from networks.sac_networks import SACGaussianPolicyFullyConv, SACCriticFullyConv
 
 def createAgent(test=False):
     print('initializing agent')
@@ -180,6 +182,9 @@ def createAgent(test=False):
             elif model == 'cnn_ssm':
                 actor = SACGaussianPolicy((obs_channel, crop_size, crop_size), len(action_sequence), ssm=True).to(device)
                 critic = SACCritic((obs_channel, crop_size, crop_size), len(action_sequence), ssm=True).to(device)
+            elif model == 'cnn_fully_conv':
+                actor = SACGaussianPolicyFullyConv((obs_channel, crop_size, crop_size), len(action_sequence)).to(device)
+                critic = SACCriticFullyConv((obs_channel, crop_size, crop_size), len(action_sequence)).to(device)
             elif model == 'cnn_2':
                 actor = SACGaussianPolicy2((obs_channel, crop_size, crop_size), len(action_sequence)).to(device)
                 critic = SACCritic2((obs_channel, crop_size, crop_size), len(action_sequence)).to(device)
@@ -198,6 +203,9 @@ def createAgent(test=False):
             elif model == 'equi_both_f':
                 actor = EquivariantSACActorFlip((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, kernel_size=3).to(device)
                 critic = EquivariantSACCriticFlip((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, kernel_size=3).to(device)
+            elif model == 'equi_both_t':
+                actor = EquivariantSACActorTrivial((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, kernel_size=3).to(device)
+                critic = EquivariantSACCriticTrivial((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, kernel_size=3).to(device)
             elif model == 'equi_both_d_share_enc':
                 enc = EquivariantEncoder128Dihedral(obs_channel, n_hidden, initialize, equi_n).to(device)
                 actor = EquivariantSACActorDihedralShareEnc(enc, (obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n, kernel_size=3).to(device)

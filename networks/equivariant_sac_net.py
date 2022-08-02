@@ -262,6 +262,58 @@ class EquivariantEncoder64Flip(torch.nn.Module):
         geo = nn.GeometricTensor(x, nn.FieldType(self.d1_act, self.obs_channel * [self.d1_act.trivial_repr]))
         return self.conv(geo)
 
+class EquivariantEncoder64Trivial(torch.nn.Module):
+    def __init__(self, obs_channel=2, n_out=128, initialize=True):
+        super().__init__()
+        self.obs_channel = obs_channel
+        self.d1_act = gspaces.TrivialOnR2()
+        self.conv = torch.nn.Sequential(
+            # 64x64
+            nn.R2Conv(nn.FieldType(self.d1_act, obs_channel * [self.d1_act.trivial_repr]),
+                      nn.FieldType(self.d1_act, n_out // 4 * [self.d1_act.regular_repr]),
+                      kernel_size=3, padding=1, initialize=initialize),
+            nn.ReLU(nn.FieldType(self.d1_act, n_out // 4 * [self.d1_act.regular_repr]), inplace=True),
+            nn.PointwiseMaxPool(nn.FieldType(self.d1_act, n_out // 4 * [self.d1_act.regular_repr]), 2),
+            # 32x32
+            nn.R2Conv(nn.FieldType(self.d1_act, n_out // 4 * [self.d1_act.regular_repr]),
+                      nn.FieldType(self.d1_act, n_out // 2 * [self.d1_act.regular_repr]),
+                      kernel_size=3, padding=1, initialize=initialize),
+            nn.ReLU(nn.FieldType(self.d1_act, n_out // 2 * [self.d1_act.regular_repr]), inplace=True),
+            nn.PointwiseMaxPool(nn.FieldType(self.d1_act, n_out // 2 * [self.d1_act.regular_repr]), 2),
+            # 16x16
+            nn.R2Conv(nn.FieldType(self.d1_act, n_out // 2 * [self.d1_act.regular_repr]),
+                      nn.FieldType(self.d1_act, n_out * [self.d1_act.regular_repr]),
+                      kernel_size=3, padding=1, initialize=initialize),
+            nn.ReLU(nn.FieldType(self.d1_act, n_out * [self.d1_act.regular_repr]), inplace=True),
+            nn.PointwiseMaxPool(nn.FieldType(self.d1_act, n_out * [self.d1_act.regular_repr]), 2),
+            # 8x8
+            nn.R2Conv(nn.FieldType(self.d1_act, n_out * [self.d1_act.regular_repr]),
+                      nn.FieldType(self.d1_act, n_out * 2 * [self.d1_act.regular_repr]),
+                      kernel_size=3, padding=1, initialize=initialize),
+            nn.ReLU(nn.FieldType(self.d1_act, n_out * 2 * [self.d1_act.regular_repr]), inplace=True),
+
+            nn.R2Conv(nn.FieldType(self.d1_act, n_out * 2 * [self.d1_act.regular_repr]),
+                      nn.FieldType(self.d1_act, n_out * [self.d1_act.regular_repr]),
+                      kernel_size=3, padding=0, initialize=initialize),
+            nn.ReLU(nn.FieldType(self.d1_act, n_out * [self.d1_act.regular_repr]), inplace=True),
+            nn.PointwiseMaxPool(nn.FieldType(self.d1_act, n_out * [self.d1_act.regular_repr]), 2),
+            # 3x3
+            nn.R2Conv(nn.FieldType(self.d1_act, n_out * [self.d1_act.regular_repr]),
+                      nn.FieldType(self.d1_act, n_out * [self.d1_act.regular_repr]),
+                      kernel_size=3, padding=0, initialize=initialize),
+            nn.ReLU(nn.FieldType(self.d1_act, n_out * [self.d1_act.regular_repr]), inplace=True),
+            # 1x1
+        )
+
+    def forward(self, x):
+        if type(x) is torch.Tensor:
+            x = nn.GeometricTensor(x, nn.FieldType(self.d1_act, self.obs_channel * [self.d1_act.trivial_repr]))
+        return self.conv(x)
+
+    def forwardNormalTensor(self, x):
+        geo = nn.GeometricTensor(x, nn.FieldType(self.d1_act, self.obs_channel * [self.d1_act.trivial_repr]))
+        return self.conv(geo)
+
 class NonEquivariantEncBase(torch.nn.Module):
     def __init__(self, obs_shape=(2, 128, 128), n_hidden=64, N=4, backbone='cnn'):
         super().__init__()
@@ -1251,7 +1303,54 @@ class EquivariantSACCriticFlip(torch.nn.Module):
         out2 = self.critic_2(cat_geo).tensor.reshape(batch_size, 1)
         return out1, out2
 
+class EquivariantSACCriticTrivial(torch.nn.Module):
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, kernel_size=3):
+        super().__init__()
+        assert obs_shape[1] in [64]
+        assert kernel_size in [3, 5]
+        self.obs_channel = obs_shape[0]
+        self.action_dim = action_dim
+        self.n_hidden = n_hidden
+        self.c1_act = gspaces.TrivialOnR2()
+        if obs_shape[-1] == 64:
+            enc = EquivariantEncoder64Trivial
+        else:
+            raise NotImplementedError
+        self.img_conv = enc(self.obs_channel, n_hidden, initialize)
+        self.critic_1 = torch.nn.Sequential(
+            nn.R2Conv(self.getMixFieldType(),
+                      nn.FieldType(self.c1_act, n_hidden * [self.c1_act.regular_repr]),
+                      kernel_size=1, padding=0, initialize=initialize),
+            nn.ReLU(nn.FieldType(self.c1_act, n_hidden * [self.c1_act.regular_repr]), inplace=True),
+            nn.GroupPooling(nn.FieldType(self.c1_act, n_hidden * [self.c1_act.regular_repr])),
+            nn.R2Conv(nn.FieldType(self.c1_act, n_hidden * [self.c1_act.trivial_repr]),
+                      nn.FieldType(self.c1_act, 1 * [self.c1_act.trivial_repr]),
+                      kernel_size=1, padding=0, initialize=initialize),
+        )
 
+        self.critic_2 = torch.nn.Sequential(
+            nn.R2Conv(self.getMixFieldType(),
+                      nn.FieldType(self.c1_act, n_hidden * [self.c1_act.regular_repr]),
+                      kernel_size=1, padding=0, initialize=initialize),
+            nn.ReLU(nn.FieldType(self.c1_act, n_hidden * [self.c1_act.regular_repr]), inplace=True),
+            nn.GroupPooling(nn.FieldType(self.c1_act, n_hidden * [self.c1_act.regular_repr])),
+            nn.R2Conv(nn.FieldType(self.c1_act, n_hidden * [self.c1_act.trivial_repr]),
+                      nn.FieldType(self.c1_act, 1 * [self.c1_act.trivial_repr]),
+                      kernel_size=1, padding=0, initialize=initialize),
+        )
+
+    def getMixFieldType(self):
+        return nn.FieldType(self.c1_act, self.n_hidden * [self.c1_act.regular_repr] + self.action_dim * [self.c1_act.trivial_repr])
+
+    def forward(self, obs, act):
+        batch_size = obs.shape[0]
+        obs_geo = nn.GeometricTensor(obs, nn.FieldType(self.c1_act, self.obs_channel * [self.c1_act.trivial_repr]))
+        conv_out = self.img_conv(obs_geo)
+        cat = torch.cat((conv_out.tensor, act.reshape(batch_size, act.shape[1], 1, 1)), dim=1)
+        cat_geo = nn.GeometricTensor(cat, self.getMixFieldType())
+        out1 = self.critic_1(cat_geo).tensor.reshape(batch_size, 1)
+        out2 = self.critic_2(cat_geo).tensor.reshape(batch_size, 1)
+        return out1, out2
 
 class EquivariantSACCriticDihedralWithNonEquiEnc(torch.nn.Module):
     def __init__(self, obs_shape=(2, 128, 128), action_dim=5, initialize=True, N=4, enc_type='fc', backbone='cnn', n_channels=[64, 64]):
@@ -1800,6 +1899,32 @@ class EquivariantSACActorFlip(SACGaussianPolicyBase):
         dtheta = conv_out[:, 1:2]
         inv_act = conv_out[:, 2:self.action_dim]
         mean = torch.cat((inv_act[:, 0:2], dy, inv_act[:, 2:3], dtheta), dim=1)
+        log_std = conv_out[:, self.action_dim:]
+        log_std = torch.clamp(log_std, min=LOG_SIG_MIN, max=LOG_SIG_MAX)
+        return mean, log_std
+
+class EquivariantSACActorTrivial(SACGaussianPolicyBase):
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, kernel_size=3):
+        super().__init__()
+        assert obs_shape[1] in [64]
+        assert kernel_size in [3, 5]
+        self.obs_channel = obs_shape[0]
+        self.action_dim = action_dim
+        self.d1_act = gspaces.TrivialOnR2()
+        enc = EquivariantEncoder64Trivial
+        self.img_conv = enc(self.obs_channel, n_hidden, initialize)
+        self.conv = torch.nn.Sequential(
+            nn.R2Conv(nn.FieldType(self.d1_act, n_hidden * [self.d1_act.regular_repr]),
+                      nn.FieldType(self.d1_act, (action_dim * 2) * [self.d1_act.trivial_repr]),
+                      kernel_size=1, padding=0, initialize=initialize)
+        )
+
+    def forward(self, obs):
+        batch_size = obs.shape[0]
+        obs_geo = nn.GeometricTensor(obs, nn.FieldType(self.d1_act, self.obs_channel * [self.d1_act.trivial_repr]))
+        enc_out = self.img_conv(obs_geo)
+        conv_out = self.conv(enc_out).tensor.reshape(batch_size, -1)
+        mean = conv_out[:, :self.action_dim]
         log_std = conv_out[:, self.action_dim:]
         log_std = torch.clamp(log_std, min=LOG_SIG_MIN, max=LOG_SIG_MAX)
         return mean, log_std

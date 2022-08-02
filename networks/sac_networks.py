@@ -73,6 +73,73 @@ class SACEncoder(nn.Module):
     def forward(self, x):
         return self.fc(self.conv(x))
 
+class SACEncoderFullyConv(nn.Module):
+    def __init__(self, obs_shape=(2, 128, 128), out_dim=1024):
+        super().__init__()
+        if obs_shape[1] == 128:
+            self.conv = torch.nn.Sequential(
+                # 128x128
+                nn.Conv2d(obs_shape[0], 32, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+                nn.MaxPool2d(2),
+                # 64x64
+                nn.Conv2d(32, 64, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+                nn.MaxPool2d(2),
+                # 32x32
+                nn.Conv2d(64, 128, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+                nn.MaxPool2d(2),
+                # 16x16
+                nn.Conv2d(128, 256, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+                nn.MaxPool2d(2),
+                # 8x8
+                nn.Conv2d(256, 512, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+
+                nn.Conv2d(512, 1024, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+
+                nn.Conv2d(1024, 512, kernel_size=3, padding=0),
+                nn.ReLU(inplace=True),
+                nn.MaxPool2d(2),
+
+                nn.Conv2d(512, 512, kernel_size=3, padding=0),
+                nn.ReLU(inplace=True),
+            )
+        else:
+            self.conv = torch.nn.Sequential(
+                # 64x64
+                nn.Conv2d(obs_shape[0], 64, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+                nn.MaxPool2d(2),
+                # 32x32
+                nn.Conv2d(64, 128, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+                nn.MaxPool2d(2),
+                # 16x16
+                nn.Conv2d(128, 256, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+                nn.MaxPool2d(2),
+                # 8x8
+                nn.Conv2d(256, 512, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+
+                nn.Conv2d(512, 1024, kernel_size=3, padding=1),
+                nn.ReLU(inplace=True),
+
+                nn.Conv2d(1024, 512, kernel_size=3, padding=0),
+                nn.ReLU(inplace=True),
+                nn.MaxPool2d(2),
+
+                nn.Conv2d(512, 512, kernel_size=3, padding=0),
+                nn.ReLU(inplace=True),
+            )
+
+    def forward(self, x):
+        return self.conv(x)
+
 class SACCritic(nn.Module):
     def __init__(self, obs_shape=(2, 128, 128), action_dim=5, ssm=False):
         super().__init__()
@@ -98,6 +165,35 @@ class SACCritic(nn.Module):
         conv_out = self.state_conv_1(obs)
         out_1 = self.critic_fc_1(torch.cat((conv_out, act), dim=1))
         out_2 = self.critic_fc_2(torch.cat((conv_out, act), dim=1))
+        return out_1, out_2
+
+class SACCriticFullyConv(nn.Module):
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5):
+        super().__init__()
+        self.state_conv_1 = SACEncoderFullyConv(obs_shape, 1024)
+
+        # Q1
+        self.critic_fc_1 = torch.nn.Sequential(
+            nn.Conv2d(512 + action_dim, 512, kernel_size=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(512, 1, kernel_size=1),
+        )
+
+        # Q2
+        self.critic_fc_2 = torch.nn.Sequential(
+            nn.Conv2d(512 + action_dim, 512, kernel_size=1),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(512, 1, kernel_size=1),
+        )
+
+        self.apply(torch_utils.weights_init)
+
+    def forward(self, obs, act):
+        conv_out = self.state_conv_1(obs)
+        out_1 = self.critic_fc_1(torch.cat((conv_out, act.reshape(act.shape[0], act.shape[1], 1, 1)), dim=1))
+        out_2 = self.critic_fc_2(torch.cat((conv_out, act.reshape(act.shape[0], act.shape[1], 1, 1)), dim=1))
+        out_1 = out_1.reshape(obs.shape[0], -1)
+        out_2 = out_2.reshape(obs.shape[0], -1)
         return out_1, out_2
 
 class SACGaussianPolicyBase(nn.Module):
@@ -131,6 +227,24 @@ class SACGaussianPolicy(SACGaussianPolicyBase):
         x = self.conv(x)
         mean = self.mean_linear(x)
         log_std = self.log_std_linear(x)
+        log_std = torch.clamp(log_std, min=LOG_SIG_MIN, max=LOG_SIG_MAX)
+        return mean, log_std
+
+class SACGaussianPolicyFullyConv(SACGaussianPolicyBase):
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5):
+        super().__init__()
+        self.conv = torch.nn.Sequential(
+            SACEncoderFullyConv(obs_shape, 1024),
+            nn.Conv2d(512, action_dim*2, kernel_size=1),
+        )
+
+        self.apply(torch_utils.weights_init)
+
+    def forward(self, x):
+        x = self.conv(x)
+        x = x.reshape(x.shape[0], -1)
+        mean = x[:, :x.shape[1]//2]
+        log_std = x[:, x.shape[1]//2:]
         log_std = torch.clamp(log_std, min=LOG_SIG_MIN, max=LOG_SIG_MAX)
         return mean, log_std
 
