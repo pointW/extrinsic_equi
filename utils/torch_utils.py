@@ -368,7 +368,7 @@ def augmentDQNTransitionC4(d):
     return ExpertTransition(d.state, obs, action, d.reward, d.next_state,
                             next_obs, d.done, d.step_left, d.expert)
 
-def augmentTransitionCn(d):
+def augmentTransitionSO2(d):
     obs, next_obs, dxy, transform_params = perturb(d.obs.copy(),
                                                    d.next_obs.copy(),
                                                    d.action[1:3].copy(),
@@ -444,8 +444,8 @@ def augmentTransitionCrop(d):
 def augmentTransition(d, aug_type):
     if aug_type == 'se2':
         return augmentTransitionSE2(d)
-    elif aug_type == 'cn':
-        return augmentTransitionCn(d)
+    elif aug_type == 'so2':
+        return augmentTransitionSO2(d)
     elif aug_type == 't':
         return augmentTransitionTranslate(d)
     elif aug_type == 'dqn_c4':
