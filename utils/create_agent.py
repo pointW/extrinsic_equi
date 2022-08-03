@@ -42,6 +42,7 @@ from agents.sacfd2 import SACfD2
 
 from networks.equivariant_sac_net import EquivariantSACActorFlip, EquivariantSACCriticFlip
 from networks.equivariant_sac_net import EquivariantSACActorTrivial, EquivariantSACCriticTrivial
+from networks.equivariant_sac_net import EquivariantSACActorDihedralAllInv, EquivariantSACCriticDihedralAllInv
 from networks.sac_networks import SACGaussianPolicyFullyConv, SACCriticFullyConv
 
 def createAgent(test=False):
@@ -200,6 +201,15 @@ def createAgent(test=False):
             elif model == 'equi_both_d':
                 actor = EquivariantSACActorDihedral((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n, kernel_size=3).to(device)
                 critic = EquivariantSACCriticDihedral((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n, kernel_size=3).to(device)
+            elif model == 'equi_d_actor_inv':
+                actor = EquivariantSACActorDihedralAllInv((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n, kernel_size=3).to(device)
+                critic = EquivariantSACCriticDihedral((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n, kernel_size=3).to(device)
+            elif model == 'equi_d_critic_inv':
+                actor = EquivariantSACActorDihedral((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n, kernel_size=3).to(device)
+                critic = EquivariantSACCriticDihedralAllInv((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n, kernel_size=3).to(device)
+            elif model == 'equi_both_d_inv':
+                actor = EquivariantSACActorDihedralAllInv((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n, kernel_size=3).to(device)
+                critic = EquivariantSACCriticDihedralAllInv((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n, kernel_size=3).to(device)
             elif model == 'equi_both_f':
                 actor = EquivariantSACActorFlip((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, kernel_size=3).to(device)
                 critic = EquivariantSACCriticFlip((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, kernel_size=3).to(device)
