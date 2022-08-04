@@ -806,10 +806,9 @@ class EquivariantSACCriticFlip(EquivariantSACCritic):
         return gspaces.Flip2dOnR2()
 
     def getMixFieldType(self):
-        n_rho1 = 2 if self.N == 2 else 1
         return nn.FieldType(self.group, self.n_hidden * [self.group.regular_repr] +
                             (self.action_dim - 2) * [self.group.trivial_repr] +
-                            n_rho1 * [self.group.irrep(1)])
+                            2 * [self.group.irrep(1)])
 
     def getActionGeometricTensor(self, act):
         batch_size = act.shape[0]
@@ -1036,10 +1035,10 @@ class EquivariantSACActorFlip(EquivariantSACActor):
         super().__init__(obs_shape, action_dim, n_hidden, initialize, 1)
 
     def getGroup(self):
-        return gspaces.Flip2dOnR2(self.N)
+        return gspaces.Flip2dOnR2()
 
     def getOutFieldType(self):
-        nn.FieldType(self.group, self.n_rho1 * [self.group.irrep(1)] + (self.action_dim * 2 - 2) * [self.group.trivial_repr])
+        return nn.FieldType(self.group, self.n_rho1 * [self.group.irrep(1)] + (self.action_dim * 2 - 2) * [self.group.trivial_repr])
 
     def getOutput(self, conv_out):
         dy = conv_out[:, 0:1]
