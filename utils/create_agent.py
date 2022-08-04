@@ -201,6 +201,12 @@ def createAgent(test=False):
             elif model == 'equi_both_d':
                 actor = EquivariantSACActorDihedral((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n, kernel_size=3).to(device)
                 critic = EquivariantSACCriticDihedral((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n, kernel_size=3).to(device)
+            elif model == 'equi_d_actor':
+                actor = EquivariantSACActorDihedral((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n, kernel_size=3).to(device)
+                critic = SACCritic((obs_channel, crop_size, crop_size), len(action_sequence), ssm=True).to(device)
+            elif model == 'equi_d_critic':
+                actor = SACGaussianPolicy((obs_channel, crop_size, crop_size), len(action_sequence), ssm=True).to(device)
+                critic = EquivariantSACCriticDihedral((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n, kernel_size=3).to(device)
             elif model == 'equi_d_actor_inv':
                 actor = EquivariantSACActorDihedralAllInv((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n, kernel_size=3).to(device)
                 critic = EquivariantSACCriticDihedral((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n, kernel_size=3).to(device)
