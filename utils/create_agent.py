@@ -205,6 +205,9 @@ def createAgent(test=False):
             elif model == 'equi_both_d':
                 actor = EquivariantSACActorDihedral((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
                 critic = EquivariantSACCriticDihedral((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
+            elif model == 'equi_both_d_res13':
+                actor = EquivariantSACActorDihedral((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n, backbone='res10').to(device)
+                critic = EquivariantSACCriticDihedral((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n, backbone='res10').to(device)
             elif model == 'equi_d_actor':
                 actor = EquivariantSACActorDihedral((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
                 critic = SACCritic((obs_channel, crop_size, crop_size), len(action_sequence), ssm=True).to(device)
@@ -249,22 +252,28 @@ def createAgent(test=False):
                 actor = EquivariantSACActorO2_3((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize).to(device)
                 critic = EquivariantSACCriticO2_3((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize).to(device)
             else:
-                if model == 'equi_both_d_w_enc' or model == 'equi_both_d_w_enc_fc':
+                if model == 'sym_enc_fc':
                     enc_type = 'fc'
                     backbone = 'cnn'
-                elif model == 'equi_both_d_w_enc_equi':
+                elif model == 'sym_enc_equi':
                     enc_type= 'equi'
                     backbone = 'cnn'
-                elif model == 'equi_both_d_w_enc_ssm':
+                elif model == 'sym_enc_ssm':
                     enc_type = 'ssm'
                     backbone = 'cnn'
-                elif model == 'equi_both_d_w_enc_ssmstd':
+                elif model == 'sym_enc_res25_ssm':
+                    enc_type = 'ssm'
+                    backbone = 'res25'
+                elif model == 'sym_enc_ssmstd':
                     enc_type = 'ssmstd'
                     backbone = 'cnn'
-                elif model == 'equi_both_d_w_enc_res_fc':
+                elif model == 'sym_enc_res_fc':
                     enc_type = 'fc'
                     backbone = 'res'
-                elif model == 'equi_both_d_w_enc_ssm_equi':
+                elif model == 'sym_enc_res25_fc':
+                    enc_type = 'fc'
+                    backbone = 'res25'
+                elif model == 'sym_enc_ssm_equi':
                     enc_type = 'ssm+equi'
                     backbone = 'cnn'
                 else:

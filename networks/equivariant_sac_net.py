@@ -7,7 +7,7 @@ from e2cnn import nn
 
 from networks.sac_networks import SACGaussianPolicyBase
 from networks.ssm import SpatialSoftArgmax
-from networks.res import BasicBlock
+from networks.res import BasicBlock, BottleneckBlock
 
 LOG_SIG_MAX = 2
 LOG_SIG_MIN = -20
@@ -47,6 +47,50 @@ class EquiResBlock(torch.nn.Module):
             out += self.upscale(residual)
         else:
             out += residual
+        out = self.relu(out)
+
+        return out
+
+class EquiBottleneckBlock(torch.nn.Module):
+    def __init__(self, r2_act, input_channels, hidden_dim, stride=1, initialize=True):
+        super(EquiBottleneckBlock, self).__init__()
+        r2_act = r2_act
+        rep = r2_act.regular_repr
+
+        feat_type_in = nn.FieldType(r2_act, input_channels * [rep])
+        feat_type_hid = nn.FieldType(r2_act, hidden_dim * [rep])
+
+        self.layer1 = nn.SequentialModule(
+            nn.R2Conv(feat_type_in, feat_type_in, kernel_size=1, initialize=initialize),
+            nn.ReLU(feat_type_in, inplace=True)
+        )
+
+        self.layer2 = nn.SequentialModule(
+            nn.R2Conv(feat_type_in, feat_type_in, kernel_size=3, padding=1, stride=stride, initialize=initialize),
+            nn.ReLU(feat_type_in, inplace=True),
+        )
+
+        self.layer3 = nn.SequentialModule(
+            nn.R2Conv(feat_type_in, feat_type_hid, kernel_size=1, initialize=initialize),
+        )
+
+        self.relu = nn.ReLU(feat_type_hid, inplace=True)
+
+        self.upscale = None
+        if input_channels != hidden_dim or stride != 1:
+            self.upscale = nn.SequentialModule(
+                nn.R2Conv(feat_type_in, feat_type_hid, kernel_size=1, stride=stride, initialize=initialize),
+            )
+
+    def forward(self, xx):
+        identity = xx
+        out = self.layer1(xx)
+        out = self.layer2(out)
+        out = self.layer3(out)
+        if self.upscale:
+            out += self.upscale(identity)
+        else:
+            out += identity
         out = self.relu(out)
 
         return out
@@ -106,7 +150,7 @@ class EquivariantEncoder128Dihedral(torch.nn.Module):
         return self.conv(x)
 
 class EquivariantEncoder128(torch.nn.Module):
-    def __init__(self, group, obs_channel=2, n_out=128, initialize=True):
+    def __init__(self, group, obs_channel=2, n_out=128, initialize=True, backbone=None):
         super().__init__()
         self.obs_channel = obs_channel
         self.group = group
@@ -160,29 +204,45 @@ class EquivariantEncoder128(torch.nn.Module):
         return self.conv(x)
 
 class EquivariantEncoder64(torch.nn.Module):
-    def __init__(self, group, obs_channel=2, n_out=128, initialize=True):
+    def __init__(self, group, obs_channel=2, n_out=128, initialize=True, backbone=None):
         super().__init__()
         self.obs_channel = obs_channel
         self.group = group
+        if backbone == 'res10':
+            self.backbone = torch.nn.Sequential(
+                # 64x64
+                nn.R2Conv(nn.FieldType(self.group, obs_channel * [self.group.trivial_repr]),
+                          nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr]),
+                          kernel_size=3, padding=1, initialize=initialize),
+                nn.ReLU(nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr]), inplace=True),
+                EquiBottleneckBlock(self.group, n_out // 4, n_out // 2, stride=2, initialize=initialize),
+                EquiBottleneckBlock(self.group, n_out // 2, n_out, stride=2, initialize=initialize),
+                EquiBottleneckBlock(self.group, n_out, n_out, stride=2, initialize=initialize),
+            )
+        else:
+            self.backbone = torch.nn.Sequential(
+                # 64x64
+                nn.R2Conv(nn.FieldType(self.group, obs_channel * [self.group.trivial_repr]),
+                          nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr]),
+                          kernel_size=3, padding=1, initialize=initialize),
+                nn.ReLU(nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr]), inplace=True),
+                nn.PointwiseMaxPool(nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr]), 2),
+                # 32x32
+                nn.R2Conv(nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr]),
+                          nn.FieldType(self.group, n_out // 2 * [self.group.regular_repr]),
+                          kernel_size=3, padding=1, initialize=initialize),
+                nn.ReLU(nn.FieldType(self.group, n_out // 2 * [self.group.regular_repr]), inplace=True),
+                nn.PointwiseMaxPool(nn.FieldType(self.group, n_out // 2 * [self.group.regular_repr]), 2),
+                # 16x16
+                nn.R2Conv(nn.FieldType(self.group, n_out // 2 * [self.group.regular_repr]),
+                          nn.FieldType(self.group, n_out * [self.group.regular_repr]),
+                          kernel_size=3, padding=1, initialize=initialize),
+                nn.ReLU(nn.FieldType(self.group, n_out * [self.group.regular_repr]), inplace=True),
+                nn.PointwiseMaxPool(nn.FieldType(self.group, n_out * [self.group.regular_repr]), 2),
+        )
+
         self.conv = torch.nn.Sequential(
-            # 64x64
-            nn.R2Conv(nn.FieldType(self.group, obs_channel * [self.group.trivial_repr]),
-                      nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr]),
-                      kernel_size=3, padding=1, initialize=initialize),
-            nn.ReLU(nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr]), inplace=True),
-            nn.PointwiseMaxPool(nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr]), 2),
-            # 32x32
-            nn.R2Conv(nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr]),
-                      nn.FieldType(self.group, n_out // 2 * [self.group.regular_repr]),
-                      kernel_size=3, padding=1, initialize=initialize),
-            nn.ReLU(nn.FieldType(self.group, n_out // 2 * [self.group.regular_repr]), inplace=True),
-            nn.PointwiseMaxPool(nn.FieldType(self.group, n_out // 2 * [self.group.regular_repr]), 2),
-            # 16x16
-            nn.R2Conv(nn.FieldType(self.group, n_out // 2 * [self.group.regular_repr]),
-                      nn.FieldType(self.group, n_out * [self.group.regular_repr]),
-                      kernel_size=3, padding=1, initialize=initialize),
-            nn.ReLU(nn.FieldType(self.group, n_out * [self.group.regular_repr]), inplace=True),
-            nn.PointwiseMaxPool(nn.FieldType(self.group, n_out * [self.group.regular_repr]), 2),
+            self.backbone,
             # 8x8
             nn.R2Conv(nn.FieldType(self.group, n_out * [self.group.regular_repr]),
                       nn.FieldType(self.group, n_out * 2 * [self.group.regular_repr]),
@@ -287,6 +347,25 @@ class NonEquivariantEncBase(torch.nn.Module):
                     # 8x8
                     BasicBlock(256, 512),
                 )
+        elif backbone == 'res25':
+            assert obs_shape[1] == 64
+            self.conv = torch.nn.Sequential(
+                torch.nn.Conv2d(obs_shape[0], 64, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                # layer1
+                BottleneckBlock(64, 64),
+                BottleneckBlock(64, 64),
+                # layer2
+                BottleneckBlock(64, 128, stride=2),
+                BottleneckBlock(128, 128),
+                # layer3
+                BottleneckBlock(128, 256, stride=2),
+                BottleneckBlock(256, 256),
+                # layer4
+                BottleneckBlock(256, 512, stride=2),
+                BottleneckBlock(512, 512),
+            )
+
         else:
             raise NotImplementedError
 
@@ -697,7 +776,7 @@ def getEnc(obs_size, enc_id):
         return EquivariantEncoder64
 
 class EquivariantSACCritic(torch.nn.Module):
-    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4):
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4, backbone=None):
         super().__init__()
         self.obs_channel = obs_shape[0]
         self.obs_shape = obs_shape
@@ -706,9 +785,9 @@ class EquivariantSACCritic(torch.nn.Module):
         self.N = N
         self.group = self.getGroup()
         if obs_shape[-1] == 128:
-            self.img_conv = EquivariantEncoder128(self.group, self.obs_channel, n_hidden, initialize)
+            self.img_conv = EquivariantEncoder128(self.group, self.obs_channel, n_hidden, initialize, backbone)
         elif obs_shape[-1] == 64:
-            self.img_conv = EquivariantEncoder64(self.group, self.obs_channel, n_hidden, initialize)
+            self.img_conv = EquivariantEncoder64(self.group, self.obs_channel, n_hidden, initialize, backbone)
         else:
             raise NotImplementedError
 
@@ -763,8 +842,8 @@ class EquivariantSACCritic(torch.nn.Module):
         return out1, out2
 
 class EquivariantSACCriticDihedral(EquivariantSACCritic):
-    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4):
-        super().__init__(obs_shape, action_dim, n_hidden, initialize, N)
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4, backbone=None):
+        super().__init__(obs_shape, action_dim, n_hidden, initialize, N, backbone)
 
     def getGroup(self):
         return gspaces.FlipRot2dOnR2(self.N)
@@ -787,8 +866,8 @@ class EquivariantSACCriticDihedral(EquivariantSACCritic):
         return cat
 
 class EquivariantSACCriticDihedralAllInv(EquivariantSACCritic):
-    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4):
-        super().__init__(obs_shape, action_dim, n_hidden, initialize, N)
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4, backbone=None):
+        super().__init__(obs_shape, action_dim, n_hidden, initialize, N, backbone)
 
     def getMixFieldType(self):
         return nn.FieldType(self.group, self.n_hidden * [self.group.regular_repr] +
@@ -799,8 +878,8 @@ class EquivariantSACCriticDihedralAllInv(EquivariantSACCritic):
         return act.reshape(batch_size, -1, 1, 1)
 
 class EquivariantSACCriticFlip(EquivariantSACCritic):
-    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True):
-        super().__init__(obs_shape, action_dim, n_hidden, initialize, 1)
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, backbone=None):
+        super().__init__(obs_shape, action_dim, n_hidden, initialize, 1, backbone)
 
     def getGroup(self):
         return gspaces.Flip2dOnR2()
@@ -822,8 +901,8 @@ class EquivariantSACCriticFlip(EquivariantSACCritic):
         return cat
 
 class EquivariantSACCriticTrivial(EquivariantSACCritic):
-    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True):
-        super().__init__(obs_shape, action_dim, n_hidden, initialize, 1)
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, backbone=None):
+        super().__init__(obs_shape, action_dim, n_hidden, initialize, 1, backbone)
 
     def getGroup(self):
         return gspaces.TrivialOnR2()
@@ -1003,7 +1082,7 @@ class EquivariantSACCriticDihedralLatentIn(torch.nn.Module):
         return out1, out2
 
 class EquivariantSACActor(SACGaussianPolicyBase):
-    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4):
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4, backbone=None):
         super().__init__()
         self.obs_channel = obs_shape[0]
         self.obs_shape = obs_shape
@@ -1013,9 +1092,9 @@ class EquivariantSACActor(SACGaussianPolicyBase):
         self.n_rho1 = 2 if self.N==2 else 1
         self.group = self.getGroup()
         if obs_shape[-1] == 128:
-            self.img_conv = EquivariantEncoder128(self.group, self.obs_channel, n_hidden, initialize)
+            self.img_conv = EquivariantEncoder128(self.group, self.obs_channel, n_hidden, initialize, backbone)
         elif obs_shape[-1] == 64:
-            self.img_conv = EquivariantEncoder64(self.group, self.obs_channel, n_hidden, initialize)
+            self.img_conv = EquivariantEncoder64(self.group, self.obs_channel, n_hidden, initialize, backbone)
         else:
             raise NotImplementedError
         self.conv = torch.nn.Sequential(
@@ -1045,8 +1124,8 @@ class EquivariantSACActor(SACGaussianPolicyBase):
         return self.getOutput(conv_out)
 
 class EquivariantSACActorDihedral(EquivariantSACActor):
-    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4):
-        super().__init__(obs_shape, action_dim, n_hidden, initialize, N)
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4, backbone=None):
+        super().__init__(obs_shape, action_dim, n_hidden, initialize, N, backbone)
 
     def getGroup(self):
         return gspaces.FlipRot2dOnR2(self.N)
@@ -1066,8 +1145,8 @@ class EquivariantSACActorDihedral(EquivariantSACActor):
         return mean, log_std
 
 class EquivariantSACActorDihedralAllInv(EquivariantSACActorDihedral):
-    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4):
-        super().__init__(obs_shape, action_dim, n_hidden, initialize, N)
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4, backbone=None):
+        super().__init__(obs_shape, action_dim, n_hidden, initialize, N, backbone)
 
     def getOutFieldType(self):
         return nn.FieldType(self.group, (self.action_dim * 2) * [self.group.trivial_repr])
@@ -1079,8 +1158,8 @@ class EquivariantSACActorDihedralAllInv(EquivariantSACActorDihedral):
         return mean, log_std
 
 class EquivariantSACActorFlip(EquivariantSACActor):
-    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True):
-        super().__init__(obs_shape, action_dim, n_hidden, initialize, 1)
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, backbone=None):
+        super().__init__(obs_shape, action_dim, n_hidden, initialize, 1, backbone)
 
     def getGroup(self):
         return gspaces.Flip2dOnR2()
@@ -1098,8 +1177,8 @@ class EquivariantSACActorFlip(EquivariantSACActor):
         return mean, log_std
 
 class EquivariantSACActorTrivial(EquivariantSACActor):
-    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True):
-        super().__init__(obs_shape, action_dim, n_hidden, initialize, 1)
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, backbone=None):
+        super().__init__(obs_shape, action_dim, n_hidden, initialize, 1, backbone)
 
     def getGroup(self):
         return gspaces.TrivialOnR2()
@@ -1114,8 +1193,8 @@ class EquivariantSACActorTrivial(EquivariantSACActor):
         return mean, log_std
 
 class EquivariantPolicyDihedral(EquivariantSACActorDihedral):
-    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4):
-        super().__init__(obs_shape, action_dim, n_hidden, initialize, N)
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4, backbone=None):
+        super().__init__(obs_shape, action_dim, n_hidden, initialize, N, backbone)
 
     def forward(self, obs):
         return super().forward(obs)[0]
@@ -1242,8 +1321,8 @@ class EquivariantSACActorDihedralLatentIn(SACGaussianPolicyBase):
         return mean, log_std
 
 class EquivariantPolicy(EquivariantSACActor):
-    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4):
-        super().__init__(obs_shape, action_dim, n_hidden, initialize, N)
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4, backbone=None):
+        super().__init__(obs_shape, action_dim, n_hidden, initialize, N, backbone)
 
     def forward(self, obs):
         return super().forward(obs)[0]

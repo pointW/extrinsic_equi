@@ -91,3 +91,37 @@ class BasicBlock(nn.Module):
 
         out = self.relu(out)
         return out
+
+class BottleneckBlock(nn.Module):
+    def __init__(self, inplanes, planes, stride=1, downsample=None, dilation=1):
+        super(BottleneckBlock, self).__init__()
+
+        if downsample is None and (inplanes != planes or stride!= 1):
+            downsample = nn.Conv2d(inplanes, planes, kernel_size=1, stride=stride, bias=False)
+
+        self.stride = stride
+        self.dilation = dilation
+        self.downsample = downsample
+        self.conv1 = conv1x1(inplanes, inplanes, dilation=dilation)
+        self.conv2 = conv3x3(inplanes, inplanes, stride, dilation=dilation)
+        self.relu = nn.ReLU(inplace=True)
+        self.conv3 = conv1x1(inplanes, planes, dilation=dilation)
+
+    def forward(self, x):
+        identity = x
+
+        out = self.conv1(x)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.relu(out)
+
+        out = self.conv3(out)
+
+        if self.downsample is not None:
+            identity = self.downsample(x)
+
+        out += identity
+        out = self.relu(out)
+
+        return out
