@@ -1038,7 +1038,7 @@ class EquivariantSACActorFlip(EquivariantSACActor):
         return gspaces.Flip2dOnR2()
 
     def getOutFieldType(self):
-        return nn.FieldType(self.group, self.n_rho1 * [self.group.irrep(1)] + (self.action_dim * 2 - 2) * [self.group.trivial_repr])
+        return nn.FieldType(self.group, 2 * [self.group.irrep(1)] + (self.action_dim * 2 - 2) * [self.group.trivial_repr])
 
     def getOutput(self, conv_out):
         dy = conv_out[:, 0:1]
