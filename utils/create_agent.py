@@ -23,7 +23,7 @@ from agents.sac_drq import SACDrQ
 from agents.sacfd_drq import SACfDDrQ
 from agents.sac_aux import SACAux
 from networks.sac_networks import SACDeterministicPolicy, SACGaussianPolicy, SACCritic, SACVecCritic, SACVecGaussianPolicy, SACCritic2, SACGaussianPolicy2
-from networks.equivariant_sac_net import EquivariantSACActor, EquivariantSACCritic, EquivariantSACActor2, EquivariantPolicy, EquivariantSACVecCritic, EquivariantSACVecGaussianPolicy, EquivariantSACCriticNoGP, EquivariantSACActor3, EquivariantSACActorDihedral, EquivariantSACCriticDihedral, EquivariantSACActorDihedralShareEnc, EquivariantSACCriticDihedralShareEnc, EquivariantEncoder128Dihedral
+from networks.equivariant_sac_net import EquivariantSACActor, EquivariantSACCritic, EquivariantPolicy, EquivariantSACVecCritic, EquivariantSACVecGaussianPolicy, EquivariantSACActorDihedral, EquivariantSACCriticDihedral, EquivariantSACActorDihedralShareEnc, EquivariantSACCriticDihedralShareEnc, EquivariantEncoder128Dihedral
 from networks.equivariant_sac_net_continuous import EquivariantSACActorSO2_1, EquivariantSACCriticSO2_1, EquivariantSACActorSO2_2, EquivariantSACCriticSO2_2, EquivariantSACActorSO2_3, EquivariantSACCriticSO2_3, EquivariantPolicySO2, EquivariantSACActorO2, EquivariantSACCriticO2, EquivariantPolicyO2, EquivariantSACActorO2_2, EquivariantSACCriticO2_2, EquivariantSACActorO2_3, EquivariantSACCriticO2_3
 from networks.equivariant_ddpg_net import EquivariantDDPGActor, EquivariantDDPGCritic
 from networks.curl_sac_net import CURLSACEncoder, CURLSACCritic, CURLSACGaussianPolicy, CURLSACEncoderOri, CURLSACEncoder2
@@ -238,9 +238,6 @@ def createAgent(test=False):
             elif model == 'equi_both_o2_3':
                 actor = EquivariantSACActorO2_3((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize).to(device)
                 critic = EquivariantSACCriticO2_3((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize).to(device)
-            elif model == 'equi_both_3':
-                actor = EquivariantSACActor3((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
-                critic = EquivariantSACCritic((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
             else:
                 if model == 'equi_both_d_w_enc' or model == 'equi_both_d_w_enc_fc':
                     enc_type = 'fc'
