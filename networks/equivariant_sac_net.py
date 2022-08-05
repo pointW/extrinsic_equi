@@ -208,41 +208,70 @@ class EquivariantEncoder64(torch.nn.Module):
         super().__init__()
         self.obs_channel = obs_channel
         self.group = group
-        if backbone == 'res10':
-            self.backbone = torch.nn.Sequential(
-                # 64x64
-                nn.R2Conv(nn.FieldType(self.group, obs_channel * [self.group.trivial_repr]),
-                          nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr]),
-                          kernel_size=3, padding=1, initialize=initialize),
-                nn.ReLU(nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr]), inplace=True),
-                EquiBottleneckBlock(self.group, n_out // 4, n_out // 2, stride=2, initialize=initialize),
-                EquiBottleneckBlock(self.group, n_out // 2, n_out, stride=2, initialize=initialize),
-                EquiBottleneckBlock(self.group, n_out, n_out, stride=2, initialize=initialize),
-            )
-        else:
-            self.backbone = torch.nn.Sequential(
-                # 64x64
-                nn.R2Conv(nn.FieldType(self.group, obs_channel * [self.group.trivial_repr]),
-                          nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr]),
-                          kernel_size=3, padding=1, initialize=initialize),
-                nn.ReLU(nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr]), inplace=True),
-                nn.PointwiseMaxPool(nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr]), 2),
-                # 32x32
-                nn.R2Conv(nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr]),
-                          nn.FieldType(self.group, n_out // 2 * [self.group.regular_repr]),
-                          kernel_size=3, padding=1, initialize=initialize),
-                nn.ReLU(nn.FieldType(self.group, n_out // 2 * [self.group.regular_repr]), inplace=True),
-                nn.PointwiseMaxPool(nn.FieldType(self.group, n_out // 2 * [self.group.regular_repr]), 2),
-                # 16x16
-                nn.R2Conv(nn.FieldType(self.group, n_out // 2 * [self.group.regular_repr]),
-                          nn.FieldType(self.group, n_out * [self.group.regular_repr]),
-                          kernel_size=3, padding=1, initialize=initialize),
-                nn.ReLU(nn.FieldType(self.group, n_out * [self.group.regular_repr]), inplace=True),
-                nn.PointwiseMaxPool(nn.FieldType(self.group, n_out * [self.group.regular_repr]), 2),
-        )
+
+        def getBackbone():
+            if backbone == 'res10':
+                return torch.nn.Sequential(
+                    # 64x64
+                    nn.R2Conv(nn.FieldType(self.group, obs_channel * [self.group.trivial_repr]),
+                              nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr]),
+                              kernel_size=3, padding=1, initialize=initialize),
+                    nn.ReLU(nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr]), inplace=True),
+                    EquiBottleneckBlock(self.group, n_out // 4, n_out // 2, stride=2, initialize=initialize),
+                    EquiBottleneckBlock(self.group, n_out // 2, n_out, stride=2, initialize=initialize),
+                    EquiBottleneckBlock(self.group, n_out, n_out, stride=2, initialize=initialize),
+                )
+            elif backbone == 'res16':
+                return torch.nn.Sequential(
+                    # 64x64
+                    nn.R2Conv(nn.FieldType(self.group, obs_channel * [self.group.trivial_repr]),
+                              nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr]),
+                              kernel_size=3, padding=1, initialize=initialize),
+                    nn.ReLU(nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr]), inplace=True),
+                    EquiBottleneckBlock(self.group, n_out // 4, n_out // 2, stride=2, initialize=initialize),
+                    EquiBottleneckBlock(self.group, n_out // 2, n_out // 2, initialize=initialize),
+                    EquiBottleneckBlock(self.group, n_out // 2, n_out, stride=2, initialize=initialize),
+                    EquiBottleneckBlock(self.group, n_out, n_out, initialize=initialize),
+                    EquiBottleneckBlock(self.group, n_out, n_out, stride=2, initialize=initialize),
+                )
+            elif backbone == 'res19':
+                return torch.nn.Sequential(
+                    # 64x64
+                    nn.R2Conv(nn.FieldType(self.group, obs_channel * [self.group.trivial_repr]),
+                              nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr]),
+                              kernel_size=3, padding=1, initialize=initialize),
+                    nn.ReLU(nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr]), inplace=True),
+                    EquiBottleneckBlock(self.group, n_out // 4, n_out // 2, stride=2, initialize=initialize),
+                    EquiBottleneckBlock(self.group, n_out // 2, n_out // 2, initialize=initialize),
+                    EquiBottleneckBlock(self.group, n_out // 2, n_out, stride=2, initialize=initialize),
+                    EquiBottleneckBlock(self.group, n_out, n_out, initialize=initialize),
+                    EquiBottleneckBlock(self.group, n_out, n_out, stride=2, initialize=initialize),
+                    EquiBottleneckBlock(self.group, n_out, n_out, initialize=initialize),
+                )
+            else:
+                return torch.nn.Sequential(
+                    # 64x64
+                    nn.R2Conv(nn.FieldType(self.group, obs_channel * [self.group.trivial_repr]),
+                              nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr]),
+                              kernel_size=3, padding=1, initialize=initialize),
+                    nn.ReLU(nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr]), inplace=True),
+                    nn.PointwiseMaxPool(nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr]), 2),
+                    # 32x32
+                    nn.R2Conv(nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr]),
+                              nn.FieldType(self.group, n_out // 2 * [self.group.regular_repr]),
+                              kernel_size=3, padding=1, initialize=initialize),
+                    nn.ReLU(nn.FieldType(self.group, n_out // 2 * [self.group.regular_repr]), inplace=True),
+                    nn.PointwiseMaxPool(nn.FieldType(self.group, n_out // 2 * [self.group.regular_repr]), 2),
+                    # 16x16
+                    nn.R2Conv(nn.FieldType(self.group, n_out // 2 * [self.group.regular_repr]),
+                              nn.FieldType(self.group, n_out * [self.group.regular_repr]),
+                              kernel_size=3, padding=1, initialize=initialize),
+                    nn.ReLU(nn.FieldType(self.group, n_out * [self.group.regular_repr]), inplace=True),
+                    nn.PointwiseMaxPool(nn.FieldType(self.group, n_out * [self.group.regular_repr]), 2),
+                )
 
         self.conv = torch.nn.Sequential(
-            self.backbone,
+            getBackbone(),
             # 8x8
             nn.R2Conv(nn.FieldType(self.group, n_out * [self.group.regular_repr]),
                       nn.FieldType(self.group, n_out * 2 * [self.group.regular_repr]),
