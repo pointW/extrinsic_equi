@@ -153,8 +153,9 @@ class BaseAgent:
         for i in range(len(self.networks)):
             self.networks[i].to('cpu')
             state['{}'.format(i)] = self.networks[i].state_dict()
-            state['{}_optimizer'.format(i)] = self.optimizers[i].state_dict()
             self.networks[i].to(self.device)
+        for i in range(len(self.optimizers)):
+            state['{}_optimizer'.format(i)] = self.optimizers[i].state_dict()
         for i in range(len(self.target_networks)):
             self.target_networks[i].to('cpu')
             state['{}_target'.format(i)] = self.target_networks[i].state_dict()
