@@ -214,6 +214,9 @@ def createAgent(test=False):
             elif model == 'equi_both_d_res19':
                 actor = EquivariantSACActorDihedral((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n, backbone='res19').to(device)
                 critic = EquivariantSACCriticDihedral((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n, backbone='res19').to(device)
+            elif model == 'equi_both_d_res31':
+                actor = EquivariantSACActorDihedral((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n, backbone='res31').to(device)
+                critic = EquivariantSACCriticDihedral((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n, backbone='res31').to(device)
             elif model == 'equi_d_actor':
                 actor = EquivariantSACActorDihedral((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
                 critic = SACCritic((obs_channel, crop_size, crop_size), len(action_sequence), ssm=True).to(device)

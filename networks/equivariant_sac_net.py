@@ -248,6 +248,24 @@ class EquivariantEncoder64(torch.nn.Module):
                     EquiBottleneckBlock(self.group, n_out, n_out, stride=2, initialize=initialize),
                     EquiBottleneckBlock(self.group, n_out, n_out, initialize=initialize),
                 )
+            elif backbone == 'res31':
+                return torch.nn.Sequential(
+                    # 64x64
+                    nn.R2Conv(nn.FieldType(self.group, obs_channel * [self.group.trivial_repr]),
+                              nn.FieldType(self.group, n_out // 8 * [self.group.regular_repr]),
+                              kernel_size=3, padding=1, initialize=initialize),
+                    nn.ReLU(nn.FieldType(self.group, n_out // 8 * [self.group.regular_repr]), inplace=True),
+                    EquiBottleneckBlock(self.group, n_out // 8, n_out // 8, initialize=initialize),
+                    EquiBottleneckBlock(self.group, n_out // 8, n_out // 8, initialize=initialize),
+                    EquiBottleneckBlock(self.group, n_out // 8, n_out // 8, initialize=initialize),
+                    EquiBottleneckBlock(self.group, n_out // 8, n_out // 4, stride=2, initialize=initialize),
+                    EquiBottleneckBlock(self.group, n_out // 4, n_out // 4, initialize=initialize),
+                    EquiBottleneckBlock(self.group, n_out // 4, n_out // 4, initialize=initialize),
+                    EquiBottleneckBlock(self.group, n_out // 4, n_out // 2, stride=2, initialize=initialize),
+                    EquiBottleneckBlock(self.group, n_out // 2, n_out // 2, initialize=initialize),
+                    EquiBottleneckBlock(self.group, n_out // 2, n_out // 2, initialize=initialize),
+                    EquiBottleneckBlock(self.group, n_out // 2, n_out, stride=2, initialize=initialize),
+                )
             else:
                 return torch.nn.Sequential(
                     # 64x64
