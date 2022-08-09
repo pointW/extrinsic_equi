@@ -33,6 +33,7 @@ from networks.cnn import DQNComCURL, DQNComCURLOri
 from agents.sac_reg import SACReg
 from networks.equivariant_dynamic_model import EquivariantRewardModelDihedral, EquivariantTransitionModelDihedral
 from networks.equivariant_sac_net import EquivariantSACCriticDihedralWithNonEquiEnc, EquivariantSACActorDihedralWithNonEquiEnc
+from networks.equivariant_sac_net import EquivariantSACCriticDihedralWithNonEquiHead, EquivariantSACActorDihedralWithNonEquiHead
 from networks.equivariant_sac_net import EquivariantPolicyDihedralWithNonEquiEnc, EquivariantPolicyDihedral
 
 from networks.curl_equi_sac_net import CURLEquiSACActorDihedral, CURLEquiSACCriticDihedral
@@ -260,6 +261,9 @@ def createAgent(test=False):
             elif model == 'equi_both_o2_3':
                 actor = EquivariantSACActorO2_3((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize).to(device)
                 critic = EquivariantSACCriticO2_3((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize).to(device)
+            elif model == 'equi_both_d_cnn_head':
+                actor = EquivariantSACActorDihedralWithNonEquiHead((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
+                critic = EquivariantSACCriticDihedralWithNonEquiHead((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
             else:
                 if model == 'sym_enc_fc':
                     enc_type = 'fc'
