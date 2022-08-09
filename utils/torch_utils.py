@@ -440,6 +440,31 @@ def augmentTransitionCrop(d):
     return ExpertTransition(d.state, obs, d.action, d.reward, d.next_state,
                             next_obs, d.done, d.step_left, d.expert)
 
+def augmentTransitionCropX(d):
+    obs = d.obs
+    next_obs = d.next_obs
+    heightmap_size = obs.shape[-1]
+
+    crop_max = heightmap_size - crop_size + 1
+    w1 = np.random.randint(0, crop_max)
+    h1 = crop_max // 2
+    obs = obs[:, w1:w1 + crop_size, h1:h1 + crop_size]
+    next_obs = next_obs[:, w1:w1 + crop_size, h1:h1 + crop_size]
+    return ExpertTransition(d.state, obs, d.action, d.reward, d.next_state,
+                            next_obs, d.done, d.step_left, d.expert)
+
+def augmentTransitionCropY(d):
+    obs = d.obs
+    next_obs = d.next_obs
+    heightmap_size = obs.shape[-1]
+
+    crop_max = heightmap_size - crop_size + 1
+    w1 = crop_max // 2
+    h1 = np.random.randint(0, crop_max)
+    obs = obs[:, w1:w1 + crop_size, h1:h1 + crop_size]
+    next_obs = next_obs[:, w1:w1 + crop_size, h1:h1 + crop_size]
+    return ExpertTransition(d.state, obs, d.action, d.reward, d.next_state,
+                            next_obs, d.done, d.step_left, d.expert)
 
 def augmentTransition(d, aug_type):
     if aug_type == 'se2':
@@ -456,6 +481,10 @@ def augmentTransition(d, aug_type):
         return augmentTransitionShift(d)
     elif aug_type == 'crop':
         return augmentTransitionCrop(d)
+    elif aug_type == 'crop_x':
+        return augmentTransitionCropX(d)
+    elif aug_type == 'crop_y':
+        return augmentTransitionCropY(d)
     else:
         raise NotImplementedError
 
