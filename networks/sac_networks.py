@@ -9,6 +9,9 @@ from torch.distributions import Normal
 from utils import torch_utils
 from networks.ssm import SpatialSoftArgmax
 
+from vit_pytorch import SimpleViT, ViT
+from networks.vit import VisionTransformer
+
 LOG_SIG_MAX = 2
 LOG_SIG_MIN = -20
 epsilon = 1e-6
@@ -196,6 +199,37 @@ class SACCriticFullyConv(nn.Module):
         out_2 = out_2.reshape(obs.shape[0], -1)
         return out_1, out_2
 
+class SACCriticViT(nn.Module):
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5):
+        super().__init__()
+        self.state_conv_1 = torch.nn.Sequential(
+            # ViT(channels=obs_shape[0], image_size=obs_shape[-1], patch_size=8, num_classes=1024,
+            #     dim=128, depth=4, heads=8, mlp_dim=128),
+            VisionTransformer(img_size=64, patch_size=4, in_chans=5, embed_dim=128, depth=4, num_heads=8,
+                              mlp_ratio=1., qkv_bias=False),
+            torch.nn.ReLU(inplace=True),
+        )
+
+        # Q1
+        self.critic_fc_1 = torch.nn.Sequential(
+            torch.nn.Linear(128 + action_dim, 512),
+            nn.ReLU(inplace=True),
+            torch.nn.Linear(512, 1)
+        )
+
+        # Q2
+        self.critic_fc_2 = torch.nn.Sequential(
+            torch.nn.Linear(128 + action_dim, 512),
+            nn.ReLU(inplace=True),
+            torch.nn.Linear(512, 1)
+        )
+
+    def forward(self, obs, act):
+        conv_out = self.state_conv_1(obs)
+        out_1 = self.critic_fc_1(torch.cat((conv_out, act), dim=1))
+        out_2 = self.critic_fc_2(torch.cat((conv_out, act), dim=1))
+        return out_1, out_2
+
 class SACGaussianPolicyBase(nn.Module):
     def __init__(self):
         super().__init__()
@@ -245,6 +279,25 @@ class SACGaussianPolicyFullyConv(SACGaussianPolicyBase):
         x = x.reshape(x.shape[0], -1)
         mean = x[:, :x.shape[1]//2]
         log_std = x[:, x.shape[1]//2:]
+        log_std = torch.clamp(log_std, min=LOG_SIG_MIN, max=LOG_SIG_MAX)
+        return mean, log_std
+
+class SACGaussianPolicyViT(SACGaussianPolicyBase):
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5):
+        super().__init__()
+        self.conv = torch.nn.Sequential(
+            VisionTransformer(img_size=64, patch_size=4, in_chans=5, embed_dim=128, depth=4, num_heads=8,
+                              mlp_ratio=1., qkv_bias=False),
+            torch.nn.ReLU(inplace=True),
+        )
+
+        self.mean_linear = nn.Linear(128, action_dim)
+        self.log_std_linear = nn.Linear(128, action_dim)
+
+    def forward(self, x):
+        x = self.conv(x)
+        mean = self.mean_linear(x)
+        log_std = self.log_std_linear(x)
         log_std = torch.clamp(log_std, min=LOG_SIG_MIN, max=LOG_SIG_MAX)
         return mean, log_std
 

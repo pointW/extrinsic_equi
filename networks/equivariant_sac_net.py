@@ -9,6 +9,11 @@ from networks.sac_networks import SACGaussianPolicyBase
 from networks.ssm import SpatialSoftArgmax
 from networks.res import BasicBlock, BottleneckBlock
 
+from vit_pytorch import SimpleViT, ViT
+from networks.vit import VisionTransformer
+
+from networks.stn import STN
+
 LOG_SIG_MAX = 2
 LOG_SIG_MIN = -20
 epsilon = 1e-6
@@ -314,6 +319,42 @@ class EquivariantEncoder64(torch.nn.Module):
             x = nn.GeometricTensor(x, nn.FieldType(self.group, self.obs_channel * [self.group.trivial_repr]))
         return self.conv(x)
 
+class NonEquivariantEncSimpleViT(torch.nn.Module):
+    def __init__(self, obs_shape=(2, 128, 128), n_hidden=64, N=4):
+        super().__init__()
+        self.d4_act = gspaces.FlipRot2dOnR2(N)
+        self.n_hidden = n_hidden
+        self.vit = torch.nn.Sequential(
+            SimpleViT(channels=obs_shape[0], image_size=obs_shape[-1], patch_size=16, num_classes=N*n_hidden*2,
+                             dim=1024, depth=6, heads=16, mlp_dim=2048),
+            torch.nn.ReLU(inplace=True),
+        )
+
+    def forward(self, x):
+        enc_out = self.vit(x)
+        enc_out = enc_out.reshape(x.shape[0], -1, 1, 1)
+        enc_out = nn.GeometricTensor(enc_out, nn.FieldType(self.d4_act, self.n_hidden * [self.d4_act.regular_repr]))
+        return enc_out
+
+class NonEquivariantEncViT(torch.nn.Module):
+    def __init__(self, obs_shape=(2, 128, 128), n_hidden=64, N=4):
+        super().__init__()
+        self.d4_act = gspaces.FlipRot2dOnR2(N)
+        self.n_hidden = n_hidden
+        self.vit = torch.nn.Sequential(
+            # ViT(channels=obs_shape[0], image_size=obs_shape[-1], patch_size=8, num_classes=N*n_hidden*2,
+                # dim=1024, depth=4, heads=8, mlp_dim=2048),
+            VisionTransformer(img_size=obs_shape[-1], patch_size=8, in_chans=obs_shape[0], embed_dim=N*n_hidden*2,
+                              depth=4, num_heads=8, mlp_ratio=1., qkv_bias=False),
+            torch.nn.ReLU(inplace=True),
+        )
+
+    def forward(self, x):
+        enc_out = self.vit(x)
+        enc_out = enc_out.reshape(x.shape[0], -1, 1, 1)
+        enc_out = nn.GeometricTensor(enc_out, nn.FieldType(self.d4_act, self.n_hidden * [self.d4_act.regular_repr]))
+        return enc_out
+
 class NonEquivariantEncBase(torch.nn.Module):
     def __init__(self, obs_shape=(2, 128, 128), n_hidden=64, N=4, backbone='cnn'):
         super().__init__()
@@ -551,6 +592,10 @@ def getNonEquivariantEnc(obs_shape=(2, 128, 128), n_hidden=64, N=4, enc_type='fc
         return NonEquivariantEncSSMStd(obs_shape, n_hidden, N, backbone)
     elif enc_type == 'ssm+equi':
         return NonEquivariantEncSSMParallelEqui(obs_shape, n_hidden, N, backbone)
+    elif enc_type == 'simple_vit':
+        return NonEquivariantEncSimpleViT(obs_shape, n_hidden, N)
+    elif enc_type == 'vit':
+        return NonEquivariantEncViT(obs_shape, n_hidden, N)
     else:
         raise NotImplementedError
 
@@ -650,6 +695,15 @@ class EquivariantSACCriticDihedral(EquivariantSACCritic):
         cat = torch.cat((inv_act.reshape(batch_size, n_inv, 1, 1), dxy.reshape(batch_size, 2, 1, 1),
                          dtheta.reshape(batch_size, 1, 1, 1), (-dtheta).reshape(batch_size, 1, 1, 1)), dim=1)
         return cat
+
+class EquivariantSACCriticDihedralWithSTN(EquivariantSACCriticDihedral):
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4, backbone=None):
+        super().__init__(obs_shape, action_dim, n_hidden, initialize, N, backbone)
+        self.stn = STN(obs_shape)
+
+    def forward(self, obs, act):
+        obs = self.stn(obs)
+        return super().forward(obs, act)
 
 class EquivariantSACCriticDihedralAllInv(EquivariantSACCritic):
     def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4, backbone=None):
@@ -962,6 +1016,16 @@ class EquivariantSACActorDihedral(EquivariantSACActor):
         log_std = conv_out[:, self.action_dim+1:]
         log_std = torch.clamp(log_std, min=LOG_SIG_MIN, max=LOG_SIG_MAX)
         return mean, log_std
+
+class EquivariantSACActorDihedralWithSTN(EquivariantSACActorDihedral):
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4, backbone=None):
+        super().__init__(obs_shape, action_dim, n_hidden, initialize, N, backbone)
+        self.stn = STN(obs_shape)
+
+    def forward(self, obs):
+        obs = self.stn(obs)
+        return super().forward(obs)
+
 
 class EquivariantSACActorDihedralAllInv(EquivariantSACActorDihedral):
     def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4, backbone=None):
@@ -1296,8 +1360,8 @@ if __name__ == '__main__':
     a2[0, 1:3] = torch.tensor([-1., 1.])
 
     # out = critic(o, a)
-    actor = EquivariantSACActorDihedralWithNonEquiHead(obs_shape=(2, 64, 64), action_dim=5, n_hidden=32, initialize=True)
-    critic = EquivariantSACCriticDihedralWithNonEquiHead(obs_shape=(2, 64, 64), action_dim=5, n_hidden=32, initialize=True)
+    actor = EquivariantSACActorDihedralWithSTN(obs_shape=(2, 64, 64), action_dim=5, n_hidden=32, initialize=True)
+    critic = EquivariantSACCriticDihedralWithSTN(obs_shape=(2, 64, 64), action_dim=5, n_hidden=32, initialize=True)
     print(critic(o, a))
     # actor = EquivariantSACActor2(obs_shape=(2, 128, 128), action_dim=5, n_hidden=64, initialize=False)
     # out3 = actor(o)

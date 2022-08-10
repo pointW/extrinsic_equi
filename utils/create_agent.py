@@ -50,6 +50,9 @@ from networks.equivariant_sac_net import EquivariantSACActorDihedralLatentIn, Eq
 
 from agents.sac_share_enc_reg import SACShareEncReg
 
+from networks.equivariant_sac_net import EquivariantSACActorDihedralWithSTN, EquivariantSACCriticDihedralWithSTN
+from networks.sac_networks import SACCriticViT, SACGaussianPolicyViT
+
 def createAgent(test=False):
     print('initializing agent')
     if view_type.find('rgbd') > -1:
@@ -188,6 +191,9 @@ def createAgent(test=False):
             elif model == 'cnn_ssm':
                 actor = SACGaussianPolicy((obs_channel, crop_size, crop_size), len(action_sequence), ssm=True).to(device)
                 critic = SACCritic((obs_channel, crop_size, crop_size), len(action_sequence), ssm=True).to(device)
+            elif model == 'cnn_vit':
+                actor = SACGaussianPolicyViT((obs_channel, crop_size, crop_size), len(action_sequence)).to(device)
+                critic = SACCriticViT((obs_channel, crop_size, crop_size), len(action_sequence)).to(device)
             elif model == 'cnn_fully_conv':
                 actor = SACGaussianPolicyFullyConv((obs_channel, crop_size, crop_size), len(action_sequence)).to(device)
                 critic = SACCriticFullyConv((obs_channel, crop_size, crop_size), len(action_sequence)).to(device)
@@ -206,6 +212,9 @@ def createAgent(test=False):
             elif model == 'equi_both_d':
                 actor = EquivariantSACActorDihedral((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
                 critic = EquivariantSACCriticDihedral((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
+            elif model == 'equi_both_d_stn':
+                actor = EquivariantSACActorDihedralWithSTN((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
+                critic = EquivariantSACCriticDihedralWithSTN((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
             elif model == 'equi_both_d_res10':
                 actor = EquivariantSACActorDihedral((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n, backbone='res10').to(device)
                 critic = EquivariantSACCriticDihedral((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n, backbone='res10').to(device)
@@ -289,6 +298,12 @@ def createAgent(test=False):
                 elif model == 'sym_enc_ssm_equi':
                     enc_type = 'ssm+equi'
                     backbone = 'cnn'
+                elif model == 'sym_enc_simple_vit':
+                    enc_type = 'simple_vit'
+                    backbone = None
+                elif model == 'sym_enc_vit':
+                    enc_type = 'vit'
+                    backbone = None
                 else:
                     raise NotImplementedError
                 actor = EquivariantSACActorDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
