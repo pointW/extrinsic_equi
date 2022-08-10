@@ -84,9 +84,9 @@ class STN(torch.nn.Module):
 
     # Spatial transformer network forward function
     def forward(self, x):
-        import matplotlib.pyplot as plt
-        fig, axs = plt.subplots(1, 2, figsize=(10, 5))
-        axs[0].imshow(torch.moveaxis(x[0, :3], 0, 2).cpu())
+        # import matplotlib.pyplot as plt
+        # fig, axs = plt.subplots(1, 2, figsize=(10, 5))
+        # axs[0].imshow(torch.moveaxis(x[0, :3], 0, 2).cpu())
 
         xs = self.localization(x)
         theta = self.fc_loc(xs)
@@ -96,6 +96,6 @@ class STN(torch.nn.Module):
         grid = perspective_grid_generator(theta, x.size())
         x = F.grid_sample(x, grid, align_corners=False)
 
-        axs[1].imshow(torch.moveaxis(x[0, :3], 0, 2).cpu())
-        fig.show()
+        # axs[1].imshow(torch.moveaxis(x[0, :3], 0, 2).cpu())
+        # fig.show()
         return x
