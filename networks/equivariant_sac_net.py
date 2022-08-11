@@ -12,7 +12,7 @@ from networks.res import BasicBlock, BottleneckBlock
 from vit_pytorch import SimpleViT, ViT
 from networks.vit import VisionTransformer
 
-from networks.stn import STN
+from networks.stn import STN, STN2
 
 LOG_SIG_MAX = 2
 LOG_SIG_MIN = -20
@@ -705,6 +705,15 @@ class EquivariantSACCriticDihedralWithSTN(EquivariantSACCriticDihedral):
         obs = self.stn(obs)
         return super().forward(obs, act)
 
+class EquivariantSACCriticDihedralWithSTN2(EquivariantSACCriticDihedral):
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4, backbone=None):
+        super().__init__(obs_shape, action_dim, n_hidden, initialize, N, backbone)
+        self.stn = STN2(obs_shape)
+
+    def forward(self, obs, act):
+        obs = self.stn(obs)
+        return super().forward(obs, act)
+
 class EquivariantSACCriticDihedralAllInv(EquivariantSACCritic):
     def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4, backbone=None):
         super().__init__(obs_shape, action_dim, n_hidden, initialize, N, backbone)
@@ -1026,6 +1035,14 @@ class EquivariantSACActorDihedralWithSTN(EquivariantSACActorDihedral):
         obs = self.stn(obs)
         return super().forward(obs)
 
+class EquivariantSACActorDihedralWithSTN2(EquivariantSACActorDihedral):
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4, backbone=None):
+        super().__init__(obs_shape, action_dim, n_hidden, initialize, N, backbone)
+        self.stn = STN2(obs_shape)
+
+    def forward(self, obs):
+        obs = self.stn(obs)
+        return super().forward(obs)
 
 class EquivariantSACActorDihedralAllInv(EquivariantSACActorDihedral):
     def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4, backbone=None):

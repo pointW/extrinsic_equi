@@ -99,3 +99,25 @@ class STN(torch.nn.Module):
         # axs[1].imshow(torch.moveaxis(x[0, :3], 0, 2).cpu())
         # fig.show()
         return x
+
+class STN2(torch.nn.Module):
+    def __init__(self, obs_shape=(1, 64, 64)):
+        super().__init__()
+        self.theta = torch.nn.Parameter(torch.tensor([1, 0, 0, 0, 1, 0, 0, 0], dtype=torch.float))
+
+    # Spatial transformer network forward function
+    def forward(self, x):
+        # import matplotlib.pyplot as plt
+        # fig, axs = plt.subplots(1, 2, figsize=(10, 5))
+        # axs[0].imshow(torch.moveaxis(x[0, :3], 0, 2).cpu())
+
+        theta = self.theta.unsqueeze(0).expand(x.shape[0], self.theta.shape[0])
+        theta = torch.cat((theta, torch.ones(x.shape[0], 1, device=x.device)), dim=1)
+        theta = theta.view(-1, 3, 3)
+
+        grid = perspective_grid_generator(theta, x.size())
+        x = F.grid_sample(x, grid, align_corners=False)
+
+        # axs[1].imshow(torch.moveaxis(x[0, :3], 0, 2).cpu())
+        # fig.show()
+        return x
