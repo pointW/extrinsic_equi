@@ -1,5 +1,6 @@
 import torch
 import torch.nn.functional as F
+from networks.unet import ResUNet4L, ResUNet5L
 
 def linspace_from_neg_one(num_steps):
     r = torch.linspace(-1, 1, num_steps)
@@ -121,3 +122,55 @@ class STN2(torch.nn.Module):
         # axs[1].imshow(torch.moveaxis(x[0, :3], 0, 2).cpu())
         # fig.show()
         return x
+
+class STN3(torch.nn.Module):
+    def __init__(self, obs_shape=(1, 64, 64)):
+        super().__init__()
+        self.grid_net = ResUNet4L(obs_shape[0], 2)
+
+    def forward(self, x):
+        # import matplotlib.pyplot as plt
+        # fig, axs = plt.subplots(1, 2, figsize=(10, 5))
+        # axs[0].imshow(torch.moveaxis(x[0, :3], 0, 2).cpu())
+
+        grid = self.grid_net(x).permute(0, 2, 3, 1)
+        x = F.grid_sample(x, grid, align_corners=False)
+
+        # axs[1].imshow(torch.moveaxis(x[0, :3], 0, 2).cpu())
+        # fig.show()
+        return x
+
+class STN4(torch.nn.Module):
+    def __init__(self, obs_shape=(1, 64, 64)):
+        super().__init__()
+        self.grid_net = torch.nn.Sequential(
+            ResUNet5L(obs_shape[0], 2),
+            torch.nn.Tanh(),
+        )
+
+    def forward(self, x):
+        # import matplotlib.pyplot as plt
+        # fig, axs = plt.subplots(1, 2, figsize=(10, 5))
+        # axs[0].imshow(torch.moveaxis(x[0, :3], 0, 2).cpu())
+
+        grid = self.grid_net(x).permute(0, 2, 3, 1)
+        grid = (grid + 1) / 2
+        grid = grid.clip(0, 1)
+        grid = (grid * (x.shape[-1]-1)).long()
+
+        transformed = []
+        for i in range(x.shape[0]):
+            transformed.append(x[i, :, grid[i, :, :, 0], grid[i, :, :, 1]])
+        transformed = torch.stack(transformed)
+
+        # x = F.grid_sample(x, grid, align_corners=False)
+
+        # axs[1].imshow(torch.moveaxis(x[0, :3], 0, 2).cpu())
+        # fig.show()
+        return transformed
+
+if __name__ == '__main__':
+    model = STN4()
+    inp = torch.zeros((2, 1, 64, 64))
+    print(model(inp).shape)
+    print(1)

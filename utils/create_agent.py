@@ -52,6 +52,8 @@ from agents.sac_share_enc_reg import SACShareEncReg
 
 from networks.equivariant_sac_net import EquivariantSACActorDihedralWithSTN, EquivariantSACCriticDihedralWithSTN
 from networks.equivariant_sac_net import EquivariantSACActorDihedralWithSTN2, EquivariantSACCriticDihedralWithSTN2
+from networks.equivariant_sac_net import EquivariantSACActorDihedralWithSTN3, EquivariantSACCriticDihedralWithSTN3
+from networks.equivariant_sac_net import EquivariantSACActorDihedralWithSTN4, EquivariantSACCriticDihedralWithSTN4
 from networks.sac_networks import SACCriticViT, SACGaussianPolicyViT
 
 def createAgent(test=False):
@@ -219,6 +221,12 @@ def createAgent(test=False):
             elif model == 'equi_both_d_stn2':
                 actor = EquivariantSACActorDihedralWithSTN2((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
                 critic = EquivariantSACCriticDihedralWithSTN2((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
+            elif model == 'equi_both_d_stn3':
+                actor = EquivariantSACActorDihedralWithSTN3((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
+                critic = EquivariantSACCriticDihedralWithSTN3((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
+            elif model == 'equi_both_d_stn4':
+                actor = EquivariantSACActorDihedralWithSTN4((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
+                critic = EquivariantSACCriticDihedralWithSTN4((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
             elif model == 'equi_both_d_res10':
                 actor = EquivariantSACActorDihedral((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n, backbone='res10').to(device)
                 critic = EquivariantSACCriticDihedral((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n, backbone='res10').to(device)
