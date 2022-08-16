@@ -10,7 +10,8 @@ from utils.env_wrapper import EnvWrapper
 
 import torch
 from e2cnn import gspaces, nn
-from utils.torch_utils import centerCrop
+from networks.equivariant_sac_net import EquivariantEncoder64
+from networks.sac_networks import SACEncoder
 
 def calcErrorMatrix(t0: torch.Tensor, t1: torch.Tensor):
     error = np.zeros((t0.shape[0], t1.shape[0]))
@@ -20,7 +21,7 @@ def calcErrorMatrix(t0: torch.Tensor, t1: torch.Tensor):
         error[i] = e.cpu().numpy()
     return error
 
-def test(agent, envs):
+def test(network, envs):
     n_true = 8
 
     states = []
@@ -48,10 +49,6 @@ def test(agent, envs):
     state_tile = states.reshape(states.size(0), 1, 1, 1).repeat(1, 1, true_obs.shape[2], true_obs.shape[3])
     true_obs = torch.cat([true_obs, state_tile], dim=1)
 
-    o0 = centerCrop(o0)
-    true_obs = centerCrop(true_obs)
-    trans_obs = centerCrop(trans_obs)
-
     o0 = o0.to(device)
     true_obs = true_obs.to(device)
     trans_obs = trans_obs.to(device)
@@ -59,23 +56,21 @@ def test(agent, envs):
     true_obs = nn.GeometricTensor(true_obs, nn.FieldType(d4, 5 * [d4.trivial_repr]))
     trans_obs = nn.GeometricTensor(trans_obs, nn.FieldType(d4, 5 * [d4.trivial_repr]))
 
-    layer0 = agent.actor.img_conv.conv[:2]
-    layer1 = agent.actor.img_conv.conv[:5]
-    layer2 = agent.actor.img_conv.conv[:8]
-    layer3 = agent.actor.img_conv.conv[:11]
-    layer4 = agent.actor.img_conv.conv[:13]
-    layer5 = agent.actor.img_conv
-    layer6 = torch.nn.Sequential(agent.actor.img_conv, agent.actor.conv)
+    layer0 = network.conv[:2]
+    layer1 = network.conv[:5]
+    layer2 = network.conv[:8]
+    layer3 = network.conv[:11]
+    layer4 = network
 
     o0_outs = []
     true_obs_outs = []
     trans_obs_outs = []
 
     with torch.no_grad():
-        for layer in [layer0, layer1, layer2, layer3, layer4, layer5, layer6]:
-            o0_outs.append(layer(o0).tensor)
-            true_obs_outs.append(layer(true_obs).tensor)
-            trans_obs_outs.append(layer(trans_obs).tensor)
+        for layer in [layer0, layer1, layer2, layer3, layer4]:
+            o0_outs.append(layer(o0.tensor))
+            true_obs_outs.append(layer(true_obs.tensor))
+            trans_obs_outs.append(layer(trans_obs.tensor))
 
     o0 = o0.tensor
     true_obs = true_obs.tensor
@@ -93,7 +88,7 @@ def test(agent, envs):
 
     layer_errors = [obs_error] + layer_errors
 
-    fig, axs = plt.subplots(2, len(layer_errors)//2, figsize=(0.3*n_true*len(layer_errors), 5*2))
+    fig, axs = plt.subplots(2, int(np.ceil(len(layer_errors)/2)), figsize=(0.3*n_true*len(layer_errors), 5*2))
     axs = axs.reshape(-1)
     for i in range(len(layer_errors)):
         axs[i].imshow(layer_errors[i])
@@ -111,6 +106,8 @@ def test(agent, envs):
             axs[i].set_title('output')
         else:
             axs[i].set_title('layer {}'.format(i-1))
+    if len(layer_errors) % 2 != 0:
+        axs[-1].axis('off')
     plt.tight_layout()
     fig.show()
 
@@ -130,9 +127,17 @@ def test(agent, envs):
 
 if __name__ == '__main__':
     plt.style.use('default')
+    # group = gspaces.FlipRot2dOnR2(4)
+    # network = EquivariantEncoder64(group, 5, 64).to(device)
+    if model == 'equi_d':
+        group = gspaces.FlipRot2dOnR2(4)
+        network = EquivariantEncoder64(group, 5, 64).to(device)
+    elif model == 'cnn_ssm':
+        network = SACEncoder(obs_shape=(5, 64, 64), out_dim=64*8, ssm=True).to(device)
+    else:
+        raise NotImplementedError
+    network.load_state_dict(torch.load('/tmp/equi_map/train_close_loop_block_picking_2022-08-15.19:22:19/models/model_99'))
     envs = EnvWrapper(num_processes, simulator, env, env_config, planner_config)
-    agent = createAgent(test=True)
-    agent.train()
-    agent.loadModel(load_model_pre)
-    test(agent, envs)
+
+    test(network, envs)
     print(0)

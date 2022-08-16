@@ -262,6 +262,10 @@ class Logger(object):
     def saveLosses(self):
         np.save(os.path.join(self.info_dir, 'losses.npy'), self.losses)
 
+    def saveModelLosses(self):
+        np.save(os.path.join(self.info_dir, 'model_losses.npy'), self.model_losses)
+        np.save(os.path.join(self.info_dir, 'model_holdout_losses.npy'), self.model_holdout_losses)
+
     def saveTdErrors(self):
         np.save(os.path.join(self.info_dir, 'td_errors.npy'), self.td_errors)
 
