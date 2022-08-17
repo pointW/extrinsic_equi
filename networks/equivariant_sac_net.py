@@ -271,6 +271,30 @@ class EquivariantEncoder64(torch.nn.Module):
                     EquiBottleneckBlock(self.group, n_out // 2, n_out // 2, initialize=initialize),
                     EquiBottleneckBlock(self.group, n_out // 2, n_out, stride=2, initialize=initialize),
                 )
+            elif backbone == 'bn':
+                return torch.nn.Sequential(
+                    # 64x64
+                    nn.R2Conv(nn.FieldType(self.group, obs_channel * [self.group.trivial_repr]),
+                              nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr]),
+                              kernel_size=3, padding=1, initialize=initialize),
+                    nn.InnerBatchNorm(nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr])),
+                    nn.ReLU(nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr]), inplace=True),
+                    nn.PointwiseMaxPool(nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr]), 2),
+                    # 32x32
+                    nn.R2Conv(nn.FieldType(self.group, n_out // 4 * [self.group.regular_repr]),
+                              nn.FieldType(self.group, n_out // 2 * [self.group.regular_repr]),
+                              kernel_size=3, padding=1, initialize=initialize),
+                    nn.InnerBatchNorm(nn.FieldType(self.group, n_out // 2 * [self.group.regular_repr])),
+                    nn.ReLU(nn.FieldType(self.group, n_out // 2 * [self.group.regular_repr]), inplace=True),
+                    nn.PointwiseMaxPool(nn.FieldType(self.group, n_out // 2 * [self.group.regular_repr]), 2),
+                    # 16x16
+                    nn.R2Conv(nn.FieldType(self.group, n_out // 2 * [self.group.regular_repr]),
+                              nn.FieldType(self.group, n_out * [self.group.regular_repr]),
+                              kernel_size=3, padding=1, initialize=initialize),
+                    nn.InnerBatchNorm(nn.FieldType(self.group, n_out * [self.group.regular_repr])),
+                    nn.ReLU(nn.FieldType(self.group, n_out * [self.group.regular_repr]), inplace=True),
+                    nn.PointwiseMaxPool(nn.FieldType(self.group, n_out * [self.group.regular_repr]), 2),
+                )
             else:
                 return torch.nn.Sequential(
                     # 64x64
@@ -293,26 +317,51 @@ class EquivariantEncoder64(torch.nn.Module):
                     nn.PointwiseMaxPool(nn.FieldType(self.group, n_out * [self.group.regular_repr]), 2),
                 )
 
-        self.conv = torch.nn.Sequential(
-            getBackbone(),
-            # 8x8
-            nn.R2Conv(nn.FieldType(self.group, n_out * [self.group.regular_repr]),
-                      nn.FieldType(self.group, n_out * 2 * [self.group.regular_repr]),
-                      kernel_size=3, padding=1, initialize=initialize),
-            nn.ReLU(nn.FieldType(self.group, n_out * 2 * [self.group.regular_repr]), inplace=True),
+        if backbone == 'bn':
+            self.conv = torch.nn.Sequential(
+                getBackbone(),
+                # 8x8
+                nn.R2Conv(nn.FieldType(self.group, n_out * [self.group.regular_repr]),
+                          nn.FieldType(self.group, n_out * 2 * [self.group.regular_repr]),
+                          kernel_size=3, padding=1, initialize=initialize),
+                nn.InnerBatchNorm(nn.FieldType(self.group, n_out * 2 * [self.group.regular_repr])),
+                nn.ReLU(nn.FieldType(self.group, n_out * 2 * [self.group.regular_repr]), inplace=True),
 
-            nn.R2Conv(nn.FieldType(self.group, n_out * 2 * [self.group.regular_repr]),
-                      nn.FieldType(self.group, n_out * [self.group.regular_repr]),
-                      kernel_size=3, padding=0, initialize=initialize),
-            nn.ReLU(nn.FieldType(self.group, n_out * [self.group.regular_repr]), inplace=True),
-            nn.PointwiseMaxPool(nn.FieldType(self.group, n_out * [self.group.regular_repr]), 2),
-            # 3x3
-            nn.R2Conv(nn.FieldType(self.group, n_out * [self.group.regular_repr]),
-                      nn.FieldType(self.group, n_out * [self.group.regular_repr]),
-                      kernel_size=3, padding=0, initialize=initialize),
-            nn.ReLU(nn.FieldType(self.group, n_out * [self.group.regular_repr]), inplace=True),
-            # 1x1
-        )
+                nn.R2Conv(nn.FieldType(self.group, n_out * 2 * [self.group.regular_repr]),
+                          nn.FieldType(self.group, n_out * [self.group.regular_repr]),
+                          kernel_size=3, padding=0, initialize=initialize),
+                nn.InnerBatchNorm(nn.FieldType(self.group, n_out * [self.group.regular_repr])),
+                nn.ReLU(nn.FieldType(self.group, n_out * [self.group.regular_repr]), inplace=True),
+                nn.PointwiseMaxPool(nn.FieldType(self.group, n_out * [self.group.regular_repr]), 2),
+                # 3x3
+                nn.R2Conv(nn.FieldType(self.group, n_out * [self.group.regular_repr]),
+                          nn.FieldType(self.group, n_out * [self.group.regular_repr]),
+                          kernel_size=3, padding=0, initialize=initialize),
+                nn.InnerBatchNorm(nn.FieldType(self.group, n_out * [self.group.regular_repr])),
+                nn.ReLU(nn.FieldType(self.group, n_out * [self.group.regular_repr]), inplace=True),
+                # 1x1
+            )
+        else:
+            self.conv = torch.nn.Sequential(
+                getBackbone(),
+                # 8x8
+                nn.R2Conv(nn.FieldType(self.group, n_out * [self.group.regular_repr]),
+                          nn.FieldType(self.group, n_out * 2 * [self.group.regular_repr]),
+                          kernel_size=3, padding=1, initialize=initialize),
+                nn.ReLU(nn.FieldType(self.group, n_out * 2 * [self.group.regular_repr]), inplace=True),
+
+                nn.R2Conv(nn.FieldType(self.group, n_out * 2 * [self.group.regular_repr]),
+                          nn.FieldType(self.group, n_out * [self.group.regular_repr]),
+                          kernel_size=3, padding=0, initialize=initialize),
+                nn.ReLU(nn.FieldType(self.group, n_out * [self.group.regular_repr]), inplace=True),
+                nn.PointwiseMaxPool(nn.FieldType(self.group, n_out * [self.group.regular_repr]), 2),
+                # 3x3
+                nn.R2Conv(nn.FieldType(self.group, n_out * [self.group.regular_repr]),
+                          nn.FieldType(self.group, n_out * [self.group.regular_repr]),
+                          kernel_size=3, padding=0, initialize=initialize),
+                nn.ReLU(nn.FieldType(self.group, n_out * [self.group.regular_repr]), inplace=True),
+                # 1x1
+            )
 
     def forward(self, x):
         if type(x) is torch.Tensor:
@@ -696,6 +745,10 @@ class EquivariantSACCriticDihedral(EquivariantSACCritic):
                          dtheta.reshape(batch_size, 1, 1, 1), (-dtheta).reshape(batch_size, 1, 1, 1)), dim=1)
         return cat
 
+class EquivariantSACCriticDihedralBN(EquivariantSACCriticDihedral):
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4):
+        super().__init__(obs_shape, action_dim, n_hidden, initialize, N, 'bn')
+
 class EquivariantSACCriticDihedralWithSTN(EquivariantSACCriticDihedral):
     def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4, backbone=None):
         super().__init__(obs_shape, action_dim, n_hidden, initialize, N, backbone)
@@ -1043,6 +1096,10 @@ class EquivariantSACActorDihedral(EquivariantSACActor):
         log_std = conv_out[:, self.action_dim+1:]
         log_std = torch.clamp(log_std, min=LOG_SIG_MIN, max=LOG_SIG_MAX)
         return mean, log_std
+
+class EquivariantSACActorDihedralBN(EquivariantSACActorDihedral):
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4):
+        super().__init__(obs_shape, action_dim, n_hidden, initialize, N, 'bn')
 
 class EquivariantSACActorDihedralWithSTN(EquivariantSACActorDihedral):
     def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=128, initialize=True, N=4, backbone=None):
