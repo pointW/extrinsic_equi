@@ -1,25 +1,3 @@
-#  MIT License
-#
-#  Copyright (c) 2022 Dian Wang
-#
-#  Permission is hereby granted, free of charge, to any person obtaining a copy
-#  of this software and associated documentation files (the "Software"), to deal
-#  in the Software without restriction, including without limitation the rights
-#  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-#  copies of the Software, and to permit persons to whom the Software is
-#  furnished to do so, subject to the following conditions:
-#
-#  The above copyright notice and this permission notice shall be included in all
-#  copies or substantial portions of the Software.
-#
-#  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-#  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-#  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-#  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-#  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-#  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-#  SOFTWARE.
-
 import copy
 import collections
 from tqdm import tqdm, trange
@@ -38,7 +16,8 @@ import torch.nn.functional as F
 from e2cnn import gspaces, nn
 from utils.torch_utils import centerCrop
 from networks.equivariant_sac_net import EquivariantEncoder64
-from networks.sac_networks import SACEncoder
+from networks.sac_networks import SACEncoder, SACEncoderFullyConv
+from utils.torch_utils import randomCrop, centerCrop
 
 def collectData():
     envs = EnvWrapper(num_processes, simulator, env, env_config, planner_config)
@@ -79,7 +58,7 @@ def collectData():
             if len(buffer) >= n_data:
                 break
 
-    torch.save(buffer, '{}_{}.pt'.format(env, n_data))
+    torch.save(buffer, '{}_{}_{}.pt'.format(env, heightmap_size, n_data))
 
 class ContrastiveModel(torch.nn.Module):
     def __init__(self, z_dim):
@@ -92,29 +71,130 @@ class ContrastiveModel(torch.nn.Module):
         logits = logits - torch.max(logits, 1)[0][:, None]
         return logits
 
-def calcLossBatch(network, contrastive, true_obs, trans_obs):
+# def calcLossBatch(network, contrastive, true_obs, trans_obs, test=False):
+#     losses = []
+#     aug_true_obs = []
+#     aug_trans_obs = []
+#     for i in range(true_obs.shape[0]):
+#         true = true_obs[i]
+#         trans = trans_obs[i]
+#         if aug and not test:
+#             # diff random crop
+#             # aug_true = []
+#             # aug_trans = []
+#             # for j in range(true.shape[0]):
+#             #     aug_true.append(randomCrop(true[j:j+1]))
+#             # for j in range(trans.shape[0]):
+#             #     aug_trans.append(randomCrop(trans[j:j+1]))
+#             # true = torch.cat(aug_true)
+#             # trans = torch.cat(aug_trans)
+#
+#             # same random crop
+#             # cat = torch.cat((true, trans))
+#             # aug_cat = randomCrop(cat)
+#             # true = aug_cat[:cat.shape[0]//2]
+#             # trans = aug_cat[cat.shape[0]//2:]
+#
+#             # true random crop, trans center crop
+#             true = randomCrop(true)
+#             trans = centerCrop(trans)
+#         else:
+#             if heightmap_size > crop_size:
+#                 true = centerCrop(true)
+#                 trans = centerCrop(trans)
+#         aug_true_obs.append(true)
+#         aug_trans_obs.append(trans)
+#     aug_true_obs = torch.stack(aug_true_obs)
+#     aug_trans_obs = torch.stack(aug_trans_obs)
+#
+#     target_obs = aug_true_obs[:, 0]
+#     z_target = network(target_obs)
+#     group = gspaces.FlipRot2dOnR2(4)
+#     if type(z_target) == torch.Tensor:
+#         z_target = z_target.unsqueeze(-1).unsqueeze(-1)
+#         z_target = nn.GeometricTensor(z_target, nn.FieldType(group, n_hidden * [group.regular_repr]))
+#     z_target = z_target.to('cpu')
+#     z_targets = [z_target.transform(e).tensor for e in group.testing_elements]
+#     z_targets = torch.stack(z_targets, 1).to(device).squeeze(-1).squeeze(-1)
+#
+#     for i in range(true_obs.shape[0]):
+#         true = aug_true_obs[i]
+#         trans = aug_trans_obs[i]
+#
+#         z_true = network(true)
+#         z_trans = network(trans)
+#         if type(z_true) == nn.GeometricTensor:
+#             z_true = z_true.tensor.squeeze(2).squeeze(2)
+#         if type(z_trans) == nn.GeometricTensor:
+#             z_trans = z_trans.tensor.squeeze(2).squeeze(2)
+#         logits = contrastive.compute_logits(z_true, z_targets[i])
+#         labels = torch.arange(logits.shape[0]).long().to(device)
+#         loss = F.cross_entropy(logits, labels)
+#         losses.append(loss)
+#     return torch.stack(losses).mean()
+
+def calcLossBatch(network, contrastive, true_obs, trans_obs, test=False):
+    batch_size = trans_obs.shape[0]
     losses = []
+    aug_true_obs = []
     for i in range(true_obs.shape[0]):
         true = true_obs[i]
-        trans = trans_obs[i]
-        # permutation = torch.rand(8).argsort().to(device)
-        # true = true[permutation]
-        # trans = trans[permutation]
-        z_true = network(true)
-        z_trans = network(trans)
-        if type(z_true) == nn.GeometricTensor:
-            z_true = z_true.tensor.squeeze(2).squeeze(2)
-        if type(z_trans) == nn.GeometricTensor:
-            z_trans = z_trans.tensor.squeeze(2).squeeze(2)
-        logits = contrastive.compute_logits(z_true, z_trans)
+        if aug and not test:
+            # diff random crop
+            # aug_true = []
+            # aug_trans = []
+            # for j in range(true.shape[0]):
+            #     aug_true.append(randomCrop(true[j:j+1]))
+            # for j in range(trans.shape[0]):
+            #     aug_trans.append(randomCrop(trans[j:j+1]))
+            # true = torch.cat(aug_true)
+            # trans = torch.cat(aug_trans)
+
+            # same random crop
+            # cat = torch.cat((true, trans))
+            # aug_cat = randomCrop(cat)
+            # true = aug_cat[:cat.shape[0]//2]
+            # trans = aug_cat[cat.shape[0]//2:]
+
+            # true random crop, trans center crop
+            true = randomCrop(true)
+        else:
+            if heightmap_size > crop_size:
+                true = centerCrop(true)
+        aug_true_obs.append(true)
+    aug_true_obs = torch.stack(aug_true_obs)
+
+    target_obs = aug_true_obs[:, 0]
+    z_target = network(target_obs)
+    group = gspaces.FlipRot2dOnR2(4)
+    if type(z_target) == torch.Tensor:
+        if len(z_target.shape) == 2:
+            z_target = z_target.unsqueeze(-1).unsqueeze(-1)
+        z_target = nn.GeometricTensor(z_target, nn.FieldType(group, n_hidden * [group.regular_repr]))
+    z_target = z_target.to('cpu')
+    z_targets = [z_target.transform(e).tensor for e in group.testing_elements]
+    z_targets = torch.stack(z_targets, 1).to(device).squeeze(-1).squeeze(-1)
+
+    aug_true_obs = aug_true_obs.reshape(batch_size * 8, aug_true_obs.shape[-3], aug_true_obs.shape[-2], aug_true_obs.shape[-1])
+    z_true = network(aug_true_obs)
+    if type(z_true) == nn.GeometricTensor:
+        z_true = z_true.tensor.squeeze(-1).squeeze(-1)
+    z_true = z_true.reshape(batch_size, 8, -1)
+
+    for i in range(true_obs.shape[0]):
+        # true = aug_true_obs[i]
+        #
+        # z_true = network(true)
+        # if type(z_true) == nn.GeometricTensor:
+        #     z_true = z_true.tensor.squeeze(2).squeeze(2)
+        logits = contrastive.compute_logits(z_true[i], z_targets[i])
         labels = torch.arange(logits.shape[0]).long().to(device)
         loss = F.cross_entropy(logits, labels)
         losses.append(loss)
     return torch.stack(losses).mean()
 
-def train():
-    max_epochs = 50
-    holdout_ratio = 0.1
+def train(n_data=1000, max_epochs=50):
+    holdout_ratio = 0.2
     pbar = tqdm(total=max_epochs)
 
     if model == 'equi_d':
@@ -122,15 +202,19 @@ def train():
         network = EquivariantEncoder64(group, 5, 64).to(device)
     elif model == 'cnn_ssm':
         network = SACEncoder(obs_shape=(5, 64, 64), out_dim=64*8, ssm=True).to(device)
+    elif model == 'cnn_fully_conv':
+        network = SACEncoderFullyConv(obs_shape=(5, 64, 64), out_dim=64*8).to(device)
     else:
         raise NotImplementedError
     contrastive = ContrastiveModel(64 * 8).to(device)
     optimizer = torch.optim.Adam(list(network.parameters()) + list(contrastive.parameters()), lr=1e-3)
 
     log_dir = os.path.join(log_pre, 'equi_map_{}'.format(model))
+    if note is not None:
+        log_dir += '_{}'.format(note)
     logger = Logger(log_dir, env, 'train', num_processes, max_train_step, gamma, log_sub)
 
-    data = torch.load('{}_1000.pt'.format(env))
+    data = torch.load('{}_{}_1000.pt'.format(env, heightmap_size))[:n_data]
     num_holdout = int(len(data) * holdout_ratio)
     true_obss, trans_obss = zip(*data)
     true_obss = torch.stack(true_obss)
@@ -156,7 +240,7 @@ def train():
         with torch.no_grad():
             holdout_true = holdout_data[:, 0].to(device)
             holdout_trans = holdout_data[:, 1].to(device)
-            holdout_loss = calcLossBatch(network, contrastive, holdout_true, holdout_trans)
+            holdout_loss = calcLossBatch(network, contrastive, holdout_true, holdout_trans, test=True)
         logger.model_holdout_losses.append(holdout_loss.item())
         logger.saveModelLosses()
         logger.saveModelLossCurve()
@@ -171,7 +255,10 @@ if __name__ == '__main__':
     # collectData()
     from scripts.main import set_seed
     global seed
-    for i in range(4):
-        set_seed(i)
-        train()
+    global note
+    for n in (200,):
+        for seed in range(0, 4):
+            note = 'aug{}_ndata{}'.format(aug, n)
+            set_seed(seed)
+            train(n_data=n)
 
