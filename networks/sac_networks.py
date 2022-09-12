@@ -82,33 +82,30 @@ class SACEncoderFullyConv(nn.Module):
         if obs_shape[1] == 128:
             self.conv = torch.nn.Sequential(
                 # 128x128
-                nn.Conv2d(obs_shape[0], 32, kernel_size=3, padding=1),
+                nn.Conv2d(obs_shape[0], 16, kernel_size=3, padding=1),
                 nn.ReLU(inplace=True),
                 nn.MaxPool2d(2),
                 # 64x64
-                nn.Conv2d(32, 64, kernel_size=3, padding=1),
+                nn.Conv2d(16, 32, kernel_size=3, padding=1),
                 nn.ReLU(inplace=True),
                 nn.MaxPool2d(2),
                 # 32x32
-                nn.Conv2d(64, 128, kernel_size=3, padding=1),
+                nn.Conv2d(32, 64, kernel_size=3, padding=1),
                 nn.ReLU(inplace=True),
                 nn.MaxPool2d(2),
                 # 16x16
-                nn.Conv2d(128, 256, kernel_size=3, padding=1),
+                nn.Conv2d(64, 128, kernel_size=3, padding=1),
                 nn.ReLU(inplace=True),
                 nn.MaxPool2d(2),
                 # 8x8
-                nn.Conv2d(256, 512, kernel_size=3, padding=1),
+                nn.Conv2d(128, 128, kernel_size=3, padding=1),
                 nn.ReLU(inplace=True),
 
-                nn.Conv2d(512, 1024, kernel_size=3, padding=1),
-                nn.ReLU(inplace=True),
-
-                nn.Conv2d(1024, 512, kernel_size=3, padding=0),
+                nn.Conv2d(128, 256, kernel_size=3, padding=0),
                 nn.ReLU(inplace=True),
                 nn.MaxPool2d(2),
 
-                nn.Conv2d(512, 512, kernel_size=3, padding=0),
+                nn.Conv2d(256, out_dim, kernel_size=3, padding=0),
                 nn.ReLU(inplace=True),
             )
         else:
@@ -173,20 +170,20 @@ class SACCritic(nn.Module):
 class SACCriticFullyConv(nn.Module):
     def __init__(self, obs_shape=(2, 128, 128), action_dim=5):
         super().__init__()
-        self.state_conv_1 = SACEncoderFullyConv(obs_shape, 1024)
+        self.state_conv_1 = SACEncoderFullyConv(obs_shape, 256)
 
         # Q1
         self.critic_fc_1 = torch.nn.Sequential(
-            nn.Conv2d(512 + action_dim, 512, kernel_size=1),
+            nn.Conv2d(256 + action_dim, 256, kernel_size=1),
             nn.ReLU(inplace=True),
-            nn.Conv2d(512, 1, kernel_size=1),
+            nn.Conv2d(256, 1, kernel_size=1),
         )
 
         # Q2
         self.critic_fc_2 = torch.nn.Sequential(
-            nn.Conv2d(512 + action_dim, 512, kernel_size=1),
+            nn.Conv2d(256 + action_dim, 256, kernel_size=1),
             nn.ReLU(inplace=True),
-            nn.Conv2d(512, 1, kernel_size=1),
+            nn.Conv2d(256, 1, kernel_size=1),
         )
 
         self.apply(torch_utils.weights_init)
@@ -268,8 +265,8 @@ class SACGaussianPolicyFullyConv(SACGaussianPolicyBase):
     def __init__(self, obs_shape=(2, 128, 128), action_dim=5):
         super().__init__()
         self.conv = torch.nn.Sequential(
-            SACEncoderFullyConv(obs_shape, 1024),
-            nn.Conv2d(512, action_dim*2, kernel_size=1),
+            SACEncoderFullyConv(obs_shape, 256),
+            nn.Conv2d(256, action_dim*2, kernel_size=1),
         )
 
         self.apply(torch_utils.weights_init)

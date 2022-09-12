@@ -198,7 +198,7 @@ def createAgent(test=False):
             elif model == 'cnn_vit':
                 actor = SACGaussianPolicyViT((obs_channel, crop_size, crop_size), len(action_sequence)).to(device)
                 critic = SACCriticViT((obs_channel, crop_size, crop_size), len(action_sequence)).to(device)
-            elif model == 'cnn_fully_conv':
+            elif model == 'cnn_sim':
                 actor = SACGaussianPolicyFullyConv((obs_channel, crop_size, crop_size), len(action_sequence)).to(device)
                 critic = SACCriticFullyConv((obs_channel, crop_size, crop_size), len(action_sequence)).to(device)
             elif model == 'cnn_2':
@@ -468,7 +468,7 @@ def createAgent(test=False):
                                                               output_dim=n_hidden * equi_n * 2, ssm=True).to(device),
                                                action_dim=len(action_sequence), n_hidden=n_hidden, initialize=initialize,
                                                N=equi_n).to(device)
-        elif model == 'cnn_2':
+        elif model == 'cnn_sim':
             actor = CURLSACGaussianPolicy(CURLSACEncoder2((obs_channel, crop_size, crop_size)).to(device), action_dim=len(action_sequence)).to(device)
             critic = CURLSACCritic(CURLSACEncoder2((obs_channel, crop_size, crop_size)).to(device), action_dim=len(action_sequence)).to(device)
         # ferm paper network

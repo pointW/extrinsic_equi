@@ -1470,8 +1470,8 @@ if __name__ == '__main__':
     a2[0, 1:3] = torch.tensor([-1., 1.])
 
     # out = critic(o, a)
-    actor = EquivariantSACActorDihedralWithSTN(obs_shape=(2, 64, 64), action_dim=5, n_hidden=32, initialize=True)
-    critic = EquivariantSACCriticDihedralWithSTN(obs_shape=(2, 64, 64), action_dim=5, n_hidden=32, initialize=True)
+    actor = EquivariantSACActor(obs_shape=(4, 128, 128), action_dim=5, n_hidden=64, initialize=True, N=8)
+    critic = EquivariantSACCritic(obs_shape=(4, 128, 128), action_dim=5, n_hidden=64, initialize=True, N=8)
     print(critic(o, a))
     # actor = EquivariantSACActor2(obs_shape=(2, 128, 128), action_dim=5, n_hidden=64, initialize=False)
     # out3 = actor(o)
