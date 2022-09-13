@@ -108,20 +108,21 @@ class CURLSACEncoder2(nn.Module):
             nn.ReLU(inplace=True),
             nn.MaxPool2d(2),
             # 8x8
-            nn.Conv2d(128, 128, kernel_size=3, padding=1),
+            nn.Conv2d(128, 256, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
-            nn.Conv2d(128, 256, kernel_size=3, padding=0),
-            nn.ReLU(inplace=True),
+            # nn.Conv2d(128, 256, kernel_size=3, padding=0),
+            # nn.ReLU(inplace=True),
             # 6x6
-            nn.MaxPool2d(2),
+            # nn.MaxPool2d(2),
             # 3x3
-            nn.Conv2d(256, 256, kernel_size=3, padding=0),
-            nn.ReLU(inplace=True),
+            # nn.Conv2d(256, 256, kernel_size=3, padding=0),
+            # nn.ReLU(inplace=True),
             nn.Flatten(),
         )
 
         self.fc = torch.nn.Sequential(
-            torch.nn.Linear(256, output_dim),
+            torch.nn.Linear(256*8*8, output_dim),
+            # torch.nn.Linear(256, output_dim),
             nn.LayerNorm(output_dim),
         )
 
@@ -178,16 +179,20 @@ class CURLSACCritic(nn.Module):
         self.encoder = encoder
         # Q1
         self.q1 = torch.nn.Sequential(
-            torch.nn.Linear(encoder_output_dim + action_dim, 256),
+            torch.nn.Linear(encoder_output_dim + action_dim, hidden_dim),
             nn.ReLU(inplace=True),
-            torch.nn.Linear(256, 1),
+            torch.nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(inplace=True),
+            torch.nn.Linear(hidden_dim, 1)
         )
 
         # Q2
         self.q2 = torch.nn.Sequential(
-            torch.nn.Linear(encoder_output_dim + action_dim, 256),
+            torch.nn.Linear(encoder_output_dim + action_dim, hidden_dim),
             nn.ReLU(inplace=True),
-            torch.nn.Linear(256, 1),
+            torch.nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(inplace=True),
+            torch.nn.Linear(hidden_dim, 1)
         )
 
     def forward(self, obs, act, detach_encoder=False):
@@ -201,10 +206,18 @@ class CURLSACGaussianPolicy(nn.Module):
         super().__init__()
         self.encoder = encoder
         self.mean_linear = torch.nn.Sequential(
-            torch.nn.Linear(encoder_output_dim, action_dim),
+            torch.nn.Linear(encoder_output_dim, hidden_dim),
+            nn.ReLU(inplace=True),
+            torch.nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(inplace=True),
+            torch.nn.Linear(hidden_dim, action_dim)
         )
         self.log_std_linear = torch.nn.Sequential(
-            torch.nn.Linear(encoder_output_dim, action_dim)
+            torch.nn.Linear(encoder_output_dim, hidden_dim),
+            nn.ReLU(inplace=True),
+            torch.nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(inplace=True),
+            torch.nn.Linear(hidden_dim, action_dim)
         )
 
         # action rescaling
@@ -300,3 +313,12 @@ class CURL(nn.Module):
         logits = torch.matmul(z_a, Wz)  # (B,B)
         logits = logits - torch.max(logits, 1)[0][:, None]
         return logits
+
+if __name__ == '__main__':
+    actor = CURLSACGaussianPolicy(CURLSACEncoder2((4, 128, 128)), hidden_dim=256)
+    critic = CURLSACCritic(CURLSACEncoder2((4, 128, 128)), hidden_dim=256)
+    # actor = CURLSACGaussianPolicy(CURLSACEncoderOri((4, 128, 128)))
+    # critic = CURLSACCritic(CURLSACEncoderOri((4, 128, 128)))
+    print(sum(p.numel() for p in actor.parameters() if p.requires_grad))
+    print(sum(p.numel() for p in critic.parameters() if p.requires_grad))
+    print(1)

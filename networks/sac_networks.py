@@ -540,8 +540,9 @@ class SACVecGaussianPolicy(SACGaussianPolicyBase):
         log_std = torch.clamp(log_std, min=LOG_SIG_MIN, max=LOG_SIG_MAX)
         return mean, log_std
 
-actor = SACGaussianPolicySimFC(obs_shape=(4, 128, 128))
-critic = SACCriticSimFC(obs_shape=(4, 128, 128))
-print(sum(p.numel() for p in actor.parameters() if p.requires_grad))
-print(sum(p.numel() for p in critic.parameters() if p.requires_grad))
-print(1)
+if __name__ == '__main__':
+    actor = SACGaussianPolicySimFC(obs_shape=(4, 128, 128))
+    critic = SACCriticSimFC(obs_shape=(4, 128, 128))
+    print(sum(p.numel() for p in actor.parameters() if p.requires_grad))
+    print(sum(p.numel() for p in critic.parameters() if p.requires_grad))
+    print(1)

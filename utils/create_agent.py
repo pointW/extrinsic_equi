@@ -473,8 +473,8 @@ def createAgent(test=False):
                                                action_dim=len(action_sequence), n_hidden=n_hidden, initialize=initialize,
                                                N=equi_n).to(device)
         elif model == 'cnn_sim':
-            actor = CURLSACGaussianPolicy(CURLSACEncoder2((obs_channel, crop_size, crop_size)).to(device), action_dim=len(action_sequence)).to(device)
-            critic = CURLSACCritic(CURLSACEncoder2((obs_channel, crop_size, crop_size)).to(device), action_dim=len(action_sequence)).to(device)
+            actor = CURLSACGaussianPolicy(CURLSACEncoder2((obs_channel, crop_size, crop_size)).to(device), hidden_dim=256, action_dim=len(action_sequence)).to(device)
+            critic = CURLSACCritic(CURLSACEncoder2((obs_channel, crop_size, crop_size)).to(device), hidden_dim=256, action_dim=len(action_sequence)).to(device)
         # ferm paper network
         elif model == 'cnn_ferm':
             actor = CURLSACGaussianPolicy(CURLSACEncoderOri((obs_channel, crop_size, crop_size)).to(device),
