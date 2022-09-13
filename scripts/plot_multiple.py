@@ -62,139 +62,24 @@ def plotEvalCurve(base, step=50000, use_default_cm=False, freq=1000):
         color_map = {}
     else:
         color_map = {
-            'equi+bufferaug': 'b',
-            'equi': 'b',
-            'cnn+bufferaug': 'g',
-            'cnn': 'g',
-            'cnn+rad': 'r',
-            'cnn+drq': 'purple',
-            'cnn+curl': 'orange',
-            'curl': 'orange',
-
-            'equi_both': 'b',
-            'equi_actor': 'r',
-            'equi_critic': 'purple',
-            'cnn_both': 'g',
-
-            'equi_rotaugall': 'b',
-            'cnn_rotaugall': 'g',
-            'rad_rotaugall': 'r',
-            'drq_rotaugall': 'purple',
-            'ferm_rotaugall': 'orange',
-
-            'sacfd_equi': 'b',
-            'sacfd_cnn': 'g',
-            'sacfd_rad_cn': 'r',
-            'sacfd_drq_cn': 'purple',
-            'sacfd_rad': 'r',
-            'sacfd_drq': 'purple',
-            'sacfd_ferm': 'orange',
-
-            'sac_equi': 'b',
-            'sac_cnn': 'g',
-            'sac_rad_crop': 'r',
-            'sac_drq_shift': 'purple',
-            'sac_curl': 'orange',
-
-            'dqn_equi': 'b',
-            'dqn_cnn': 'g',
-            'dqn_rad_crop': 'r',
-            'dqn_drq_shift': 'purple',
-            'dqn_curl': 'orange',
-
-            'C8': 'b',
-            'C4': 'g',
-            'C2': 'r',
+            # 'equi depth': 'b',
+            # 'equi grid': 'g',
+            # 'equi white': 'r',
+            # 'ssm depth': 'y',
+            # 'ssm grid': 'c',
+            # 'ssm white': 'm',
         }
 
     linestyle_map = {
     }
     name_map = {
-        'equi+bufferaug': 'Equivariant',
-        'equi': 'Equivariant',
-        'cnn+bufferaug': 'CNN',
-        'cnn': 'CNN',
-        'cnn+rad': 'RAD',
-        'cnn+drq': 'DrQ',
-        'cnn+curl': 'FERM',
-        'curl': 'CURL',
-
-        'equi_both': 'Equi Actor + Equi Critic',
-        'equi_actor': 'Equi Actor + CNN Critic',
-        'equi_critic': 'CNN Actor + Equi Critic',
-        'cnn_both': 'CNN Actor + CNN Critic',
-
-        'equi_rotaugall': 'Equi SACAux',
-        'cnn_rotaugall': 'CNN SACAux',
-        'rad_rotaugall': 'RAD Crop SACAux',
-        'drq_rotaugall': 'DrQ Shift SACAux',
-        'ferm_rotaugall': 'FERM SACAux',
-
-        'sacfd_equi': 'Equi SACAux',
-        'sacfd_cnn': 'CNN SACAux',
-        'sacfd_rad_cn': 'RAD SO(2) SACAux',
-        'sacfd_drq_cn': 'DrQ SO(2) SACAux',
-        'sacfd_rad': 'RAD Crop SACAux',
-        'sacfd_drq': 'DrQ Shift SACAux',
-        'sacfd_ferm': 'FERM SACAux',
-
-        'sac_equi': 'Equi SAC',
-        'sac_cnn': 'CNN SAC',
-        'sac_rad_crop': 'RAD Crop SAC',
-        'sac_drq_shift': 'DrQ Shift SAC',
-        'sac_curl': 'FERM',
-
-        'dqn_equi': 'Equi DQN',
-        'dqn_cnn': 'CNN DQN',
-        'dqn_rad_crop': 'RAD Crop DQN',
-        'dqn_drq_shift': 'DrQ Shift DQN',
-        'dqn_curl': 'CURL DQN',
     }
 
     sequence = {
-        'equi+bufferaug': '0',
-        'equi': '0',
-        'cnn+bufferaug': '1',
-        'cnn': '1',
-        'cnn+rad': '2',
-        'cnn+drq': '3',
-        'cnn+curl': '4',
-        'curl': '4',
-
-        'equi_both': '0',
-        'equi_actor': '1',
-        'equi_critic': '2',
-        'cnn_both': '3',
-
-        'equi_rotaugall': '0',
-        'cnn_rotaugall': '1',
-        'rad_rotaugall': '2',
-        'drq_rotaugall': '3',
-        'ferm_rotaugall': '4',
-
-        'sacfd_equi': '0',
-        'sacfd_cnn': '1',
-        'sacfd_rad_cn': '2',
-        'sacfd_drq_cn': '3',
-        'sacfd_rad': '2',
-        'sacfd_drq': '3',
-        'sacfd_ferm': '4',
-
-        'sac_equi': '0',
-        'sac_cnn': '1',
-        'sac_rad_crop': '2',
-        'sac_drq_shift': '3',
-        'sac_curl': '4',
-
-        'dqn_equi': '0',
-        'dqn_cnn': '1',
-        'dqn_rad_crop': '2',
-        'dqn_drq_shift': '3',
-        'dqn_curl': '4',
-
-        'C8': '0',
-        'C4': '1',
-        'C2': '2',
+        'equi both': 0,
+        'cnn actor + equi critic': 1,
+        'cnn both': 2,
+        'equi actor + cnn critic': 3
     }
 
     i = 0
@@ -225,7 +110,9 @@ def plotEvalCurve(base, step=50000, use_default_cm=False, freq=1000):
     # plt.ylim(bottom=-0.05)
 
     plt.tight_layout()
-    plt.savefig(os.path.join(base, 'eval.png'), bbox_inches='tight',pad_inches = 0)
+    # plt.savefig(os.path.join(base, 'eval.png'), bbox_inches='tight',pad_inches = 0)
+    head, tail = os.path.split(base)
+    plt.savefig(os.path.join(head, '{}.png'.format(tail)), bbox_inches='tight',pad_inches = 0)
 
 def plotStepRewardCurve(base, step=50000, use_default_cm=False, freq=1000):
     plt.style.use('ggplot')
@@ -659,7 +546,7 @@ def plotLoss(base, step):
 
 
 if __name__ == '__main__':
-    base = '/media/dian/hdd/mrun_results/transfer/0713_reg/bowl'
+    base = '/media/dian/hdd/mrun_results/transfer/0912_iclr/bowl'
     # plotLearningCurve(base, 1000, window=20)
     # plotSuccessRate(base, 1000, window=20)
     plotEvalCurve(base, 10000, freq=500)
