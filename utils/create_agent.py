@@ -56,6 +56,7 @@ from networks.equivariant_sac_net import EquivariantSACActorDihedralWithSTN3, Eq
 from networks.equivariant_sac_net import EquivariantSACActorDihedralWithSTN4, EquivariantSACCriticDihedralWithSTN4
 from networks.equivariant_sac_net import EquivariantSACActorDihedralBN, EquivariantSACCriticDihedralBN
 from networks.sac_networks import SACCriticViT, SACGaussianPolicyViT
+from networks.sac_networks import SACCriticSimFC, SACGaussianPolicySimFC
 
 def createAgent(test=False):
     print('initializing agent')
@@ -201,6 +202,9 @@ def createAgent(test=False):
             elif model == 'cnn_sim':
                 actor = SACGaussianPolicyFullyConv((obs_channel, crop_size, crop_size), len(action_sequence)).to(device)
                 critic = SACCriticFullyConv((obs_channel, crop_size, crop_size), len(action_sequence)).to(device)
+            elif model == 'cnn_sim_fc':
+                actor = SACGaussianPolicySimFC((obs_channel, crop_size, crop_size), len(action_sequence)).to(device)
+                critic = SACCriticSimFC((obs_channel, crop_size, crop_size), len(action_sequence)).to(device)
             elif model == 'cnn_2':
                 actor = SACGaussianPolicy2((obs_channel, crop_size, crop_size), len(action_sequence)).to(device)
                 critic = SACCritic2((obs_channel, crop_size, crop_size), len(action_sequence)).to(device)
