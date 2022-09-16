@@ -541,8 +541,8 @@ class SACVecGaussianPolicy(SACGaussianPolicyBase):
         return mean, log_std
 
 if __name__ == '__main__':
-    actor = SACGaussianPolicySimFC(obs_shape=(4, 128, 128))
-    critic = SACCriticSimFC(obs_shape=(4, 128, 128))
+    actor = SACGaussianPolicyFullyConv(obs_shape=(4, 128, 128))
+    critic = SACCriticFullyConv(obs_shape=(4, 128, 128))
     print(sum(p.numel() for p in actor.parameters() if p.requires_grad))
     print(sum(p.numel() for p in critic.parameters() if p.requires_grad))
     print(1)

@@ -92,23 +92,23 @@ class CURLSACEncoder2(nn.Module):
         super().__init__()
         self.conv = torch.nn.Sequential(
             # 128x128
-            nn.Conv2d(input_shape[0], 16, kernel_size=3, padding=1),
+            nn.Conv2d(input_shape[0], 32, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(2),
             # 64x64
-            nn.Conv2d(16, 32, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(2),
-            # 32x32
             nn.Conv2d(32, 64, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(2),
-            # 16x16
+            # 32x32
             nn.Conv2d(64, 128, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(2),
-            # 8x8
+            # 16x16
             nn.Conv2d(128, 256, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),
+            # 8x8
+            nn.Conv2d(256, 256, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
             # nn.Conv2d(128, 256, kernel_size=3, padding=0),
             # nn.ReLU(inplace=True),
@@ -319,6 +319,8 @@ if __name__ == '__main__':
     critic = CURLSACCritic(CURLSACEncoder2((4, 128, 128)), hidden_dim=256)
     # actor = CURLSACGaussianPolicy(CURLSACEncoderOri((4, 128, 128)))
     # critic = CURLSACCritic(CURLSACEncoderOri((4, 128, 128)))
-    print(sum(p.numel() for p in actor.parameters() if p.requires_grad))
-    print(sum(p.numel() for p in critic.parameters() if p.requires_grad))
+    n_enc = sum(p.numel() for p in actor.encoder.parameters() if p.requires_grad)
+    n_actor = sum(p.numel() for p in actor.parameters() if p.requires_grad)
+    n_critic = sum(p.numel() for p in critic.parameters() if p.requires_grad)
+    print(n_actor + n_critic - n_enc)
     print(1)
