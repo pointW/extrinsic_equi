@@ -40,6 +40,7 @@ env_group.add_argument('--collision_terminate', type=strToBool, default=False)
 env_group.add_argument('--white_plane', type=strToBool, default=False)
 env_group.add_argument('--black_workspace', type=strToBool, default=False)
 env_group.add_argument('--trans_plane', type=strToBool, default=False)
+env_group.add_argument('--trans_robot', type=strToBool, default=False)
 
 training_group = parser.add_argument_group('training')
 training_group.add_argument('--alg', default='dqn')
@@ -165,6 +166,7 @@ collision_terminate = args.collision_terminate
 white_plane = args.white_plane
 black_workspace = args.black_workspace
 trans_plane = args.trans_plane
+trans_robot = args.trans_robot
 
 ######################################################################################
 # training
@@ -277,7 +279,8 @@ env_config = {'workspace': workspace, 'max_steps': max_episode_steps, 'obs_size'
               'workspace_check': 'point', 'hard_reset_freq': 1000, 'physics_mode' : 'fast', 'view_type': view_type,
               'obs_type': obs_type, 'transparent_bin': transparent_bin, 'collision_penalty': collision_penalty,
               'fix_set': fix_set, 'collision_terminate': collision_terminate,
-              'white_plane': white_plane, 'black_workspace': black_workspace, 'trans_plane': trans_plane}
+              'white_plane': white_plane, 'black_workspace': black_workspace, 'trans_plane': trans_plane,
+              'trans_robot': trans_robot}
 planner_config = {'random_orientation':random_orientation, 'dpos': dpos, 'drot': drot}
 if seed is not None:
     env_config['seed'] = seed
