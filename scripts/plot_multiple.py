@@ -73,6 +73,7 @@ def plotEvalCurve(base, step=50000, use_default_cm=False, freq=1000):
     linestyle_map = {
     }
     name_map = {
+
     }
 
     sequence = {
@@ -546,10 +547,13 @@ def plotLoss(base, step):
 
 
 if __name__ == '__main__':
-    base = '/media/dian/hdd/mrun_results/transfer/0912_iclr/bowl'
+    base = '/media/dian/hdd/mrun_results/transfer/0912_iclr'
+    envs = filter(lambda x: x[0] != '.', get_immediate_subdirectories(base))
+    for env in envs:
+        plotEvalCurve(os.path.join(base, env), 10000, freq=200)
     # plotLearningCurve(base, 1000, window=20)
     # plotSuccessRate(base, 1000, window=20)
-    plotEvalCurve(base, 10000, freq=500)
+    # plotEvalCurve(base, 10000, freq=200)
     # showPerformance(base)
     # plotLoss(base, 30000)
 
