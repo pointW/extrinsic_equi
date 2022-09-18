@@ -26,7 +26,7 @@ from networks.sac_networks import SACDeterministicPolicy, SACGaussianPolicy, SAC
 from networks.equivariant_sac_net import EquivariantSACActor, EquivariantSACCritic, EquivariantPolicy, EquivariantSACVecCritic, EquivariantSACVecGaussianPolicy, EquivariantSACActorDihedral, EquivariantSACCriticDihedral, EquivariantSACActorDihedralShareEnc, EquivariantSACCriticDihedralShareEnc, EquivariantEncoder128Dihedral
 from networks.equivariant_sac_net_continuous import EquivariantSACActorSO2_1, EquivariantSACCriticSO2_1, EquivariantSACActorSO2_2, EquivariantSACCriticSO2_2, EquivariantSACActorSO2_3, EquivariantSACCriticSO2_3, EquivariantPolicySO2, EquivariantSACActorO2, EquivariantSACCriticO2, EquivariantPolicyO2, EquivariantSACActorO2_2, EquivariantSACCriticO2_2, EquivariantSACActorO2_3, EquivariantSACCriticO2_3
 from networks.equivariant_ddpg_net import EquivariantDDPGActor, EquivariantDDPGCritic
-from networks.curl_sac_net import CURLSACEncoder, CURLSACCritic, CURLSACGaussianPolicy, CURLSACEncoderOri, CURLSACEncoder2
+from networks.curl_sac_net import CURLSACEncoder, CURLSACCritic, CURLSACGaussianPolicy, CURLSACEncoderOri, CURLSACEncoder2, CURLSACEncoder3
 from networks.curl_equi_sac_net import CURLEquiSACEncoder, CURLEquiSACCritic, CURLEquiSACGaussianPolicy
 from networks.cnn import DQNComCURL, DQNComCURLOri
 
@@ -472,9 +472,14 @@ def createAgent(test=False):
                                                               output_dim=n_hidden * equi_n * 2, ssm=True).to(device),
                                                action_dim=len(action_sequence), n_hidden=n_hidden, initialize=initialize,
                                                N=equi_n).to(device)
+        # more weights in conv
         elif model == 'cnn_sim':
             actor = CURLSACGaussianPolicy(CURLSACEncoder2((obs_channel, crop_size, crop_size)).to(device), hidden_dim=256, action_dim=len(action_sequence)).to(device)
             critic = CURLSACCritic(CURLSACEncoder2((obs_channel, crop_size, crop_size)).to(device), hidden_dim=256, action_dim=len(action_sequence)).to(device)
+        # more weights in fc
+        elif model == 'cnn_sim_2':
+            actor = CURLSACGaussianPolicy(CURLSACEncoder3((obs_channel, crop_size, crop_size)).to(device), hidden_dim=512, action_dim=len(action_sequence)).to(device)
+            critic = CURLSACCritic(CURLSACEncoder3((obs_channel, crop_size, crop_size)).to(device), hidden_dim=512, action_dim=len(action_sequence)).to(device)
         # ferm paper network
         elif model == 'cnn_ferm':
             actor = CURLSACGaussianPolicy(CURLSACEncoderOri((obs_channel, crop_size, crop_size)).to(device),

@@ -86,7 +86,7 @@ class CURLSACEncoder(nn.Module):
             if isinstance(self.conv[i], nn.Conv2d):
                 tieWeights(src=source.conv[i], trg=self.conv[i])
 
-# similar amount of parameters
+# similar amount of parameters more in conv
 class CURLSACEncoder2(nn.Module):
     def __init__(self, input_shape=(2, 64, 64), output_dim=50):
         super().__init__()
@@ -123,6 +123,50 @@ class CURLSACEncoder2(nn.Module):
         self.fc = torch.nn.Sequential(
             torch.nn.Linear(256*8*8, output_dim),
             # torch.nn.Linear(256, output_dim),
+            nn.LayerNorm(output_dim),
+        )
+
+    def forward(self, x, detach=False):
+        h = self.conv(x)
+        if detach:
+            h = h.detach()
+        h_fc = self.fc(h)
+        return h_fc
+
+    def copyConvWeightsFrom(self, source):
+        for i in range(len(self.conv)):
+            if isinstance(self.conv[i], nn.Conv2d):
+                tieWeights(src=source.conv[i], trg=self.conv[i])
+
+# similar amount of parameters more in fc
+class CURLSACEncoder3(nn.Module):
+    def __init__(self, input_shape=(2, 64, 64), output_dim=50):
+        super().__init__()
+        self.conv = torch.nn.Sequential(
+            # 128x128
+            nn.Conv2d(input_shape[0], 16, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),
+            # 64x64
+            nn.Conv2d(16, 32, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),
+            # 32x32
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),
+            # 16x16
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),
+            # 8x8
+            nn.Conv2d(128, 256, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.Flatten(),
+        )
+
+        self.fc = torch.nn.Sequential(
+            torch.nn.Linear(256*8*8, output_dim),
             nn.LayerNorm(output_dim),
         )
 
