@@ -62,25 +62,26 @@ def plotEvalCurve(base, step=50000, use_default_cm=False, freq=1000):
         color_map = {}
     else:
         color_map = {
-            # 'equi depth': 'b',
-            # 'equi grid': 'g',
-            # 'equi white': 'r',
-            # 'ssm depth': 'y',
-            # 'ssm grid': 'c',
-            # 'ssm white': 'm',
+            'Equi SAC + RAD Crop': 'b',
+            'RAD Crop': 'g',
+            'DrQ Crop': 'r',
+            'FERM': 'purple',
         }
 
     linestyle_map = {
     }
     name_map = {
-
+        'Equi SAC + RAD Crop': 'Equi SAC + RAD',
+        'RAD Crop': 'CNN SAC + RAD',
+        'DrQ Crop': 'CNN SAC + DrQ',
+        'FERM': 'FERM',
     }
 
     sequence = {
-        'equi both': 0,
-        'cnn actor + equi critic': 1,
-        'cnn both': 2,
-        'equi actor + cnn critic': 3
+        'Equi SAC + RAD Crop': '0',
+        'RAD Crop': '1',
+        'DrQ Crop': '2',
+        'FERM': '3',
     }
 
     i = 0
@@ -94,7 +95,7 @@ def plotEvalCurve(base, step=50000, use_default_cm=False, freq=1000):
             except Exception as e:
                 print(e)
                 continue
-
+        assert j == 3
         plotEvalCurveAvg(rs, freq, label=name_map[method] if method in name_map else method,
                          color=color_map[method] if method in color_map else colors[i],
                          linestyle=linestyle_map[method] if method in linestyle_map else '-')
@@ -108,12 +109,67 @@ def plotEvalCurve(base, step=50000, use_default_cm=False, freq=1000):
     plt.ylabel('eval discounted reward')
     # plt.xlim((-100, step+100))
     # plt.yticks(np.arange(0., 1.05, 0.1))
-    # plt.ylim(bottom=-0.05)
+    plt.ylim(bottom=-0.05)
 
     plt.tight_layout()
     # plt.savefig(os.path.join(base, 'eval.png'), bbox_inches='tight',pad_inches = 0)
     head, tail = os.path.split(base)
     plt.savefig(os.path.join(head, '{}.png'.format(tail)), bbox_inches='tight',pad_inches = 0)
+
+def plotViewAngleCurve(base, step=5000, freq=200):
+    plt.style.use('ggplot')
+    plt.figure(dpi=300)
+    MEDIUM_SIZE = 12
+    BIGGER_SIZE = 14
+
+    plt.rc('axes', titlesize=BIGGER_SIZE)  # fontsize of the axes title
+    plt.rc('axes', labelsize=BIGGER_SIZE)  # fontsize of the x and y labels
+    plt.rc('xtick', labelsize=MEDIUM_SIZE)  # fontsize of the tick labels
+    plt.rc('ytick', labelsize=MEDIUM_SIZE)  # fontsize of the tick labels
+
+    color_map = {
+        'equi': 'b',
+        'cnn': 'g',
+    }
+
+    sequence = {
+        'equi': '1',
+        'cnn': '2',
+    }
+
+    angles = ['90', '75', '60', '45', '30', '15']
+
+    methods = filter(lambda x: x[0] != '.', get_immediate_subdirectories(base))
+    for method in sorted(methods, key=lambda x: sequence[x] if x in sequence.keys() else x):
+        rs = [[] for _ in angles]
+        for i, angle in enumerate(angles):
+            for j, run in enumerate(get_immediate_subdirectories(os.path.join(base, method, angle))):
+                try:
+                    r = np.load(os.path.join(base, method, angle, run, 'info/eval_rewards.npy'))
+                    rs[i].append(r[step//freq-1])
+                except Exception as e:
+                    print(e)
+                    continue
+
+        avg_rewards = np.mean(rs, axis=1)
+        std_rewards = stats.sem(rs, axis=1)
+        plt.fill_between(angles, avg_rewards - std_rewards, avg_rewards + std_rewards, alpha=0.2, color=color_map[method])
+        l = plt.plot(angles, avg_rewards, label=method, color=color_map[method], alpha=0.7)
+        plt.legend(loc=4)
+
+    # plt.plot([0, ep], [1.450, 1.450], label='planner')
+    plt.legend(loc=0, facecolor='w', fontsize='x-large')
+    plt.xlabel('view angle')
+    # if base.find('bbp') > -1:
+    plt.ylabel('eval return at {} steps'.format(step))
+    # plt.xlim((-100, step+100))
+    # plt.yticks(np.arange(0., 1.05, 0.1))
+    plt.ylim(bottom=-0.05)
+
+    plt.tight_layout()
+    # plt.savefig(os.path.join(base, 'eval.png'), bbox_inches='tight',pad_inches = 0)
+    head, tail = os.path.split(base)
+    plt.savefig(os.path.join(head, '{}_{}.png'.format(tail, step)), bbox_inches='tight',pad_inches = 0)
 
 def plotStepRewardCurve(base, step=50000, use_default_cm=False, freq=1000):
     plt.style.use('ggplot')
@@ -547,15 +603,14 @@ def plotLoss(base, step):
 
 
 if __name__ == '__main__':
-    base = '/media/dian/hdd/mrun_results/transfer/0912_iclr'
+    base = '/media/dian/hdd/mrun_results/transfer/iclr/equi_vs_cnn'
     envs = filter(lambda x: x[0] != '.', get_immediate_subdirectories(base))
     for env in envs:
         plotEvalCurve(os.path.join(base, env), 10000, freq=200)
-    # plotLearningCurve(base, 1000, window=20)
-    # plotSuccessRate(base, 1000, window=20)
-    # plotEvalCurve(base, 10000, freq=200)
-    # showPerformance(base)
-    # plotLoss(base, 30000)
 
-    # plotStepRewardCurve(base, 10000, freq=200)
+    base = '/media/dian/hdd/mrun_results/transfer/iclr/view_angle'
+    envs = filter(lambda x: x[0] != '.', get_immediate_subdirectories(base))
+    for env in envs:
+         plotViewAngleCurve(os.path.join(base, env), 10000 if env == 'bowl' else 5000)
+
 
