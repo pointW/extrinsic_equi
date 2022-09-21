@@ -293,45 +293,16 @@ def createAgent(test=False):
             elif model == 'equi_both_d_cnn_head':
                 actor = EquivariantSACActorDihedralWithNonEquiHead((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
                 critic = EquivariantSACCriticDihedralWithNonEquiHead((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
-            else:
-                if model == 'sym_enc_fc':
-                    enc_type = 'fc'
-                    backbone = 'cnn'
-                elif model == 'sym_enc_equi':
-                    enc_type= 'equi'
-                    backbone = 'cnn'
-                elif model == 'sym_enc_ssm':
-                    enc_type = 'ssm'
-                    backbone = 'cnn'
-                elif model == 'sym_enc_res25_ssm':
-                    enc_type = 'ssm'
-                    backbone = 'res25'
-                elif model == 'sym_enc_ssmstd':
-                    enc_type = 'ssmstd'
-                    backbone = 'cnn'
-                elif model == 'sym_enc_res_fc':
-                    enc_type = 'fc'
-                    backbone = 'res'
-                elif model == 'sym_enc_res25_fc':
-                    enc_type = 'fc'
-                    backbone = 'res25'
-                elif model == 'sym_enc_ssm_equi':
-                    enc_type = 'ssm+equi'
-                    backbone = 'cnn'
-                elif model == 'sym_enc_simple_vit':
-                    enc_type = 'simple_vit'
-                    backbone = None
-                elif model == 'sym_enc_vit':
-                    enc_type = 'vit'
-                    backbone = None
-                else:
-                    raise NotImplementedError
+            elif model == 'sen_fc':
                 actor = EquivariantSACActorDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
-                                                                  initialize=initialize, N=equi_n, enc_type=enc_type,
-                                                                  backbone=backbone, n_channels=actor_channels).to(device)
+                                                                  n_hidden=n_hidden, initialize=initialize, N=equi_n, enc='fc').to(device)
                 critic = EquivariantSACCriticDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
-                                                                    initialize=initialize, N=equi_n, enc_type=enc_type,
-                                                                    backbone=backbone, n_channels=critic_channels).to(device)
+                                                                    n_hidden=n_hidden, initialize=initialize, N=equi_n, enc='fc').to(device)
+            elif model == 'sen_conv':
+                actor = EquivariantSACActorDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
+                                                                  n_hidden=n_hidden, initialize=initialize, N=equi_n, enc='conv').to(device)
+                critic = EquivariantSACCriticDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
+                                                                    n_hidden=n_hidden, initialize=initialize, N=equi_n, enc='conv').to(device)
         # vector observation
         elif obs_type == 'vec':
             if model == 'cnn':

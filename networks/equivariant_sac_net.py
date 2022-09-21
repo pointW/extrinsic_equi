@@ -633,6 +633,8 @@ class NonEquivariantEncSSMParallelEqui(NonEquivariantEncSSM):
 def getNonEquivariantEnc(obs_shape=(2, 128, 128), n_hidden=64, N=4, enc_type='fc', backbone='cnn'):
     if enc_type == 'fc':
         return NonEquivariantEncFC(obs_shape, n_hidden, N, backbone)
+    elif enc_type == 'conv':
+        return NonEquivariantEncConv(obs_shape, n_hidden, N, backbone)
     elif enc_type == 'equi':
         return NonEquivariantEncEqui(obs_shape, n_hidden, N, backbone)
     elif enc_type == 'ssm':
@@ -835,44 +837,107 @@ class EquivariantSACCriticTrivial(EquivariantSACCritic):
         return act.reshape(batch_size, -1, 1, 1)
 
 class EquivariantSACCriticDihedralWithNonEquiEnc(torch.nn.Module):
-    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, initialize=True, N=4, enc_type='fc', backbone='cnn', n_channels=[64, 64]):
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=64, initialize=True, N=4, enc='fc'):
         super().__init__()
-        assert obs_shape[1] in [128, 64]
-        n_layer = len(n_channels)
-        assert n_layer >= 2
         self.obs_channel = obs_shape[0]
-        self.n_hidden = n_channels[0]
+        self.n_hidden = n_hidden
         self.d4_act = gspaces.FlipRot2dOnR2(N)
-        self.img_conv = getNonEquivariantEnc(obs_shape, n_channels[0], N, enc_type, backbone)
+        if enc == 'conv':
+            self.img_conv = torch.nn.Sequential(
+                # 128x128
+                torch.nn.Conv2d(obs_shape[0], 16, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 64x64
+                torch.nn.Conv2d(16, 32, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 32x32
+                torch.nn.Conv2d(32, 64, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 16x16
+                torch.nn.Conv2d(64, 128, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 8x8
+                torch.nn.Conv2d(128, 128, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+
+                torch.nn.Conv2d(128, 256, kernel_size=3, padding=0),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+
+                torch.nn.Conv2d(256, 256, kernel_size=3, padding=0),
+                torch.nn.ReLU(inplace=True),
+
+                torch.nn.Conv2d(256, n_hidden*8, kernel_size=1, padding=0),
+                torch.nn.ReLU(inplace=True),
+            )
+        elif enc == 'fc':
+            self.img_conv = torch.nn.Sequential(
+                # 128x128
+                torch.nn.Conv2d(obs_shape[0], 16, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 64x64
+                torch.nn.Conv2d(16, 32, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 32x32
+                torch.nn.Conv2d(32, 64, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 16x16
+                torch.nn.Conv2d(64, 128, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 8x8
+                torch.nn.Conv2d(128, 128, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+
+                torch.nn.Conv2d(128, 160, kernel_size=3, padding=0),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+
+                torch.nn.Flatten(),
+                torch.nn.Linear(160 * 3 * 3, n_hidden*8),
+                torch.nn.ReLU(inplace=True),
+            )
         self.n_rho1 = 2 if N==2 else 1
-        def getLayers():
-            layers = [
-                nn.R2Conv(nn.FieldType(self.d4_act, n_channels[0] * [self.d4_act.regular_repr] +
+        self.critic_1 = torch.nn.Sequential(
+            nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr] +
                                        (action_dim - 3) * [self.d4_act.trivial_repr] +
                                        self.n_rho1 * [self.d4_act.irrep(1, 1)] +
                                        1 * [self.d4_act.quotient_repr((None, 4))]),
-                          nn.FieldType(self.d4_act, n_channels[1] * [self.d4_act.regular_repr]),
-                          kernel_size=1, padding=0, initialize=initialize),
-                nn.ReLU(nn.FieldType(self.d4_act, n_channels[1] * [self.d4_act.regular_repr]), inplace=True)
-            ]
-            for i in range(1, n_layer - 1):
-                layers.append(nn.R2Conv(nn.FieldType(self.d4_act, n_channels[i] * [self.d4_act.regular_repr]),
-                                        nn.FieldType(self.d4_act, n_channels[i+1] * [self.d4_act.regular_repr]),
-                                        kernel_size=1, padding=0, initialize=initialize))
-                layers.append(nn.ReLU(nn.FieldType(self.d4_act, n_channels[i+1] * [self.d4_act.regular_repr]), inplace=True))
-            layers.append(nn.GroupPooling(nn.FieldType(self.d4_act, n_channels[-1] * [self.d4_act.regular_repr])))
-            layers.append(nn.R2Conv(nn.FieldType(self.d4_act, n_channels[-1] * [self.d4_act.trivial_repr]),
-                                    nn.FieldType(self.d4_act, 1 * [self.d4_act.trivial_repr]),
-                                    kernel_size=1, padding=0, initialize=initialize))
-            return layers
+                      nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
+                      kernel_size=1, padding=0, initialize=initialize),
+            nn.ReLU(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]), inplace=True),
+            nn.GroupPooling(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr])),
+            nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.trivial_repr]),
+                      nn.FieldType(self.d4_act, 1 * [self.d4_act.trivial_repr]),
+                      kernel_size=1, padding=0, initialize=initialize),
+        )
 
-        self.critic_1 = torch.nn.Sequential(*getLayers())
-
-        self.critic_2 = torch.nn.Sequential(*getLayers())
+        self.critic_2 = torch.nn.Sequential(
+            nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr] +
+                                       (action_dim - 3) * [self.d4_act.trivial_repr] +
+                                       self.n_rho1 * [self.d4_act.irrep(1, 1)] +
+                                       1 * [self.d4_act.quotient_repr((None, 4))]),
+                      nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
+                      kernel_size=1, padding=0, initialize=initialize),
+            nn.ReLU(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]), inplace=True),
+            nn.GroupPooling(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr])),
+            nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.trivial_repr]),
+                      nn.FieldType(self.d4_act, 1 * [self.d4_act.trivial_repr]),
+                      kernel_size=1, padding=0, initialize=initialize),
+        )
 
     def forward(self, obs, act):
         batch_size = obs.shape[0]
         enc_out = self.img_conv(obs)
+        enc_out = enc_out.reshape(obs.shape[0], -1, 1, 1)
+        enc_out = nn.GeometricTensor(enc_out, nn.FieldType(self.d4_act, self.n_hidden * [self.d4_act.regular_repr]))
         if len(act.shape) == 2:
             dxy = act[:, 1:3]
             inv_act = torch.cat((act[:, 0:1], act[:, 3:4]), dim=1)
@@ -1193,30 +1258,87 @@ class EquivariantPolicyDihedral(EquivariantSACActorDihedral):
         return super().forward(obs)[0]
 
 class EquivariantSACActorDihedralWithNonEquiEnc(SACGaussianPolicyBase):
-    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, initialize=True, N=4, enc_type='fc', backbone='cnn', n_channels=[64]):
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, n_hidden=64, initialize=True, N=4, enc='fc'):
         super().__init__()
         assert obs_shape[1] in [128, 64]
-        n_layer = len(n_channels)
-        assert n_layer >= 1
         self.obs_channel = obs_shape[0]
         self.action_dim = action_dim
         self.d4_act = gspaces.FlipRot2dOnR2(N)
         self.n_rho1 = 2 if N==2 else 1
-        self.img_conv = getNonEquivariantEnc(obs_shape, n_channels[0], N, enc_type, backbone)
-        layers = []
-        for i in range(n_layer - 1):
-            layers.append(nn.R2Conv(nn.FieldType(self.d4_act, n_channels[i] * [self.d4_act.regular_repr]),
-                                    nn.FieldType(self.d4_act, n_channels[i+1] * [self.d4_act.regular_repr]),
-                                    kernel_size=1, padding=0, initialize=initialize))
-            layers.append(nn.ReLU(nn.FieldType(self.d4_act, n_channels[i+1] * [self.d4_act.regular_repr]), inplace=True))
-        layers.append(nn.R2Conv(nn.FieldType(self.d4_act, n_channels[-1] * [self.d4_act.regular_repr]),
-                                nn.FieldType(self.d4_act, self.n_rho1 * [self.d4_act.irrep(1, 1)] + 1 * [self.d4_act.quotient_repr((None, 4))] + (action_dim * 2 - 3) * [self.d4_act.trivial_repr]),
-                                kernel_size=1, padding=0, initialize=initialize))
-        self.conv = torch.nn.Sequential(*layers)
+        self.n_hidden = n_hidden
+        if enc == 'conv':
+            self.img_conv = torch.nn.Sequential(
+                # 128x128
+                torch.nn.Conv2d(obs_shape[0], 16, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 64x64
+                torch.nn.Conv2d(16, 32, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 32x32
+                torch.nn.Conv2d(32, 64, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 16x16
+                torch.nn.Conv2d(64, 128, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 8x8
+                torch.nn.Conv2d(128, 128, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+
+                torch.nn.Conv2d(128, 256, kernel_size=3, padding=0),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+
+                torch.nn.Conv2d(256, 256, kernel_size=3, padding=0),
+                torch.nn.ReLU(inplace=True),
+
+                torch.nn.Conv2d(256, n_hidden*8, kernel_size=1, padding=0),
+                torch.nn.ReLU(inplace=True),
+            )
+        elif enc == 'fc':
+            self.img_conv = torch.nn.Sequential(
+                # 128x128
+                torch.nn.Conv2d(obs_shape[0], 16, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 64x64
+                torch.nn.Conv2d(16, 32, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 32x32
+                torch.nn.Conv2d(32, 64, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 16x16
+                torch.nn.Conv2d(64, 128, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 8x8
+                torch.nn.Conv2d(128, 128, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+
+                torch.nn.Conv2d(128, 160, kernel_size=3, padding=0),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+
+                torch.nn.Flatten(),
+                torch.nn.Linear(160 * 3 * 3, n_hidden*8),
+                torch.nn.ReLU(inplace=True),
+            )
+        self.conv = torch.nn.Sequential(
+            nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr]),
+                      nn.FieldType(self.d4_act, self.n_rho1 * [self.d4_act.irrep(1, 1)] + 1 * [self.d4_act.quotient_repr((None, 4))] + (action_dim * 2 - 3) * [self.d4_act.trivial_repr]),
+                      kernel_size=1, padding=0, initialize=initialize)
+        )
 
     def forward(self, obs):
         batch_size = obs.shape[0]
         enc_out = self.img_conv(obs)
+        enc_out = enc_out.reshape(obs.shape[0], -1, 1, 1)
+        enc_out = nn.GeometricTensor(enc_out, nn.FieldType(self.d4_act, self.n_hidden * [self.d4_act.regular_repr]))
         conv_out = self.conv(enc_out).tensor.reshape(batch_size, -1)
         dxy = conv_out[:, 0:2]
         dtheta = conv_out[:, 2:3] - conv_out[:, 3:4]
@@ -1455,7 +1577,7 @@ class EquivariantSACVecGaussianPolicy(SACGaussianPolicyBase):
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
-    o = torch.zeros(1, 2, 64, 64)
+    o = torch.zeros(1, 4, 128, 128)
     o[0, 0, 10:30, 10:20] = 1
     a = torch.zeros(1, 5)
     a[0, 1:3] = torch.tensor([-1., -1.])
@@ -1470,9 +1592,15 @@ if __name__ == '__main__':
     a2[0, 1:3] = torch.tensor([-1., 1.])
 
     # out = critic(o, a)
-    actor = EquivariantSACActor(obs_shape=(4, 128, 128), action_dim=5, n_hidden=64, initialize=True, N=8)
-    critic = EquivariantSACCritic(obs_shape=(4, 128, 128), action_dim=5, n_hidden=64, initialize=True, N=8)
+    # actor = EquivariantSACActor(obs_shape=(4, 128, 128), action_dim=5, n_hidden=64, initialize=True, N=8)
+    # critic = EquivariantSACCritic(obs_shape=(4, 128, 128), action_dim=5, n_hidden=64, initialize=True, N=8)
+    actor = EquivariantSACActorDihedralWithNonEquiEnc((4, 128, 128), 5,
+                                                      initialize=True, N=4, enc='conv')
+    critic = EquivariantSACCriticDihedralWithNonEquiEnc((4, 128, 128), 5,
+                                                        initialize=True, N=4, enc='conv')
+    print(actor(o))
     print(critic(o, a))
+    print(1)
     # actor = EquivariantSACActor2(obs_shape=(2, 128, 128), action_dim=5, n_hidden=64, initialize=False)
     # out3 = actor(o)
     #
