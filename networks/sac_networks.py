@@ -77,7 +77,7 @@ class SACEncoder(nn.Module):
         return self.fc(self.conv(x))
 
 class SACEncoderSimFC(nn.Module):
-    def __init__(self, obs_shape=(2, 128, 128), out_dim=1024, ssm=False):
+    def __init__(self, obs_shape=(2, 128, 128), out_dim=1024):
         super().__init__()
         self.conv = torch.nn.Sequential(
             # 128x128
@@ -105,18 +105,47 @@ class SACEncoderSimFC(nn.Module):
             nn.MaxPool2d(2),
         )
 
-        if ssm:
-            self.fc = torch.nn.Sequential(
-                SpatialSoftArgmax(),
-                torch.nn.Linear(512 * 2, out_dim),
-                nn.ReLU(inplace=True),
-            )
-        else:
-            self.fc = torch.nn.Sequential(
-                nn.Flatten(),
-                torch.nn.Linear(256 * 3 * 3, out_dim),
-                nn.ReLU(inplace=True),
-            )
+        self.fc = torch.nn.Sequential(
+            nn.Flatten(),
+            torch.nn.Linear(256 * 3 * 3, out_dim),
+            nn.ReLU(inplace=True),
+        )
+
+
+    def forward(self, x):
+        return self.fc(self.conv(x))
+
+class SACEncoderSimFC2(nn.Module):
+    def __init__(self, obs_shape=(2, 128, 128), out_dim=1024):
+        super().__init__()
+        self.conv = torch.nn.Sequential(
+            # 128x128
+            nn.Conv2d(obs_shape[0], 16, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),
+            # 64x64
+            nn.Conv2d(16, 32, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),
+            # 32x32
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),
+            # 16x16
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),
+            # 8x8
+            nn.Conv2d(128, 64, kernel_size=3, padding=1),
+            nn.ReLU(inplace=True),
+        )
+
+        self.fc = torch.nn.Sequential(
+            nn.Flatten(),
+            torch.nn.Linear(64 * 8 * 8, out_dim),
+            nn.ReLU(inplace=True),
+        )
+
 
     def forward(self, x):
         return self.fc(self.conv(x))
@@ -213,9 +242,14 @@ class SACCritic(nn.Module):
         return out_1, out_2
 
 class SACCriticSimFC(nn.Module):
-    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, ssm=False):
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, enc_id=1):
         super().__init__()
-        self.state_conv_1 = SACEncoderSimFC(obs_shape, 256, ssm)
+        if enc_id == 1:
+            self.conv = SACEncoderSimFC(obs_shape, 256)
+        elif enc_id == 2:
+            self.conv = SACEncoderSimFC2(obs_shape, 256)
+        else:
+            raise NotImplementedError
 
         # Q1
         self.critic_fc_1 = torch.nn.Sequential(
@@ -234,7 +268,7 @@ class SACCriticSimFC(nn.Module):
         self.apply(torch_utils.weights_init)
 
     def forward(self, obs, act):
-        conv_out = self.state_conv_1(obs)
+        conv_out = self.conv(obs)
         out_1 = self.critic_fc_1(torch.cat((conv_out, act), dim=1))
         out_2 = self.critic_fc_2(torch.cat((conv_out, act), dim=1))
         return out_1, out_2
@@ -334,9 +368,14 @@ class SACGaussianPolicy(SACGaussianPolicyBase):
         return mean, log_std
 
 class SACGaussianPolicySimFC(SACGaussianPolicyBase):
-    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, ssm=False):
+    def __init__(self, obs_shape=(2, 128, 128), action_dim=5, enc_id=1):
         super().__init__()
-        self.conv = SACEncoderSimFC(obs_shape, 256, ssm)
+        if enc_id == 1:
+            self.conv = SACEncoderSimFC(obs_shape, 256)
+        elif enc_id == 2:
+            self.conv = SACEncoderSimFC2(obs_shape, 256)
+        else:
+            raise NotImplementedError
         self.mean_linear = nn.Linear(256, action_dim)
         self.log_std_linear = nn.Linear(256, action_dim)
 
@@ -541,8 +580,8 @@ class SACVecGaussianPolicy(SACGaussianPolicyBase):
         return mean, log_std
 
 if __name__ == '__main__':
-    actor = SACGaussianPolicyFullyConv(obs_shape=(4, 128, 128))
-    critic = SACCriticFullyConv(obs_shape=(4, 128, 128))
+    actor = SACGaussianPolicySimFC(obs_shape=(4, 128, 128), enc_id=2)
+    critic = SACCriticSimFC(obs_shape=(4, 128, 128), enc_id=2)
     print(sum(p.numel() for p in actor.parameters() if p.requires_grad))
     print(sum(p.numel() for p in critic.parameters() if p.requires_grad))
     print(1)

@@ -904,6 +904,32 @@ class EquivariantSACCriticDihedralWithNonEquiEnc(torch.nn.Module):
                 torch.nn.Linear(160 * 3 * 3, n_hidden*8),
                 torch.nn.ReLU(inplace=True),
             )
+        elif enc == 'fc_2':
+            self.img_conv = torch.nn.Sequential(
+                # 128x128
+                torch.nn.Conv2d(obs_shape[0], 16, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 64x64
+                torch.nn.Conv2d(16, 32, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 32x32
+                torch.nn.Conv2d(32, 64, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 16x16
+                torch.nn.Conv2d(64, 128, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 8x8
+                torch.nn.Conv2d(128, 64, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+
+                torch.nn.Flatten(),
+                torch.nn.Linear(64 * 8 * 8, n_hidden*8),
+                torch.nn.ReLU(inplace=True),
+            )
         self.n_rho1 = 2 if N==2 else 1
         self.critic_1 = torch.nn.Sequential(
             nn.R2Conv(nn.FieldType(self.d4_act, n_hidden * [self.d4_act.regular_repr] +
@@ -1325,7 +1351,33 @@ class EquivariantSACActorDihedralWithNonEquiEnc(SACGaussianPolicyBase):
                 torch.nn.MaxPool2d(2),
 
                 torch.nn.Flatten(),
-                torch.nn.Linear(160 * 3 * 3, n_hidden*8),
+                torch.nn.Linear(160 * 3 * 3, n_hidden * 8),
+                torch.nn.ReLU(inplace=True),
+            )
+        elif enc == 'fc_2':
+            self.img_conv = torch.nn.Sequential(
+                # 128x128
+                torch.nn.Conv2d(obs_shape[0], 16, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 64x64
+                torch.nn.Conv2d(16, 32, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 32x32
+                torch.nn.Conv2d(32, 64, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 16x16
+                torch.nn.Conv2d(64, 128, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+                torch.nn.MaxPool2d(2),
+                # 8x8
+                torch.nn.Conv2d(128, 64, kernel_size=3, padding=1),
+                torch.nn.ReLU(inplace=True),
+
+                torch.nn.Flatten(),
+                torch.nn.Linear(64 * 8 * 8, n_hidden * 8),
                 torch.nn.ReLU(inplace=True),
             )
         self.conv = torch.nn.Sequential(
@@ -1595,9 +1647,9 @@ if __name__ == '__main__':
     # actor = EquivariantSACActor(obs_shape=(4, 128, 128), action_dim=5, n_hidden=64, initialize=True, N=8)
     # critic = EquivariantSACCritic(obs_shape=(4, 128, 128), action_dim=5, n_hidden=64, initialize=True, N=8)
     actor = EquivariantSACActorDihedralWithNonEquiEnc((4, 128, 128), 5,
-                                                      initialize=True, N=4, enc='conv')
+                                                      initialize=True, N=4, enc='fc_2', n_hidden=32)
     critic = EquivariantSACCriticDihedralWithNonEquiEnc((4, 128, 128), 5,
-                                                        initialize=True, N=4, enc='conv')
+                                                        initialize=True, N=4, enc='fc_2', n_hidden=32)
     print(actor(o))
     print(critic(o, a))
     print(1)

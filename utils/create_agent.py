@@ -205,6 +205,9 @@ def createAgent(test=False):
             elif model == 'cnn_sim_fc':
                 actor = SACGaussianPolicySimFC((obs_channel, crop_size, crop_size), len(action_sequence)).to(device)
                 critic = SACCriticSimFC((obs_channel, crop_size, crop_size), len(action_sequence)).to(device)
+            elif model == 'cnn_sim_fc_2':
+                actor = SACGaussianPolicySimFC((obs_channel, crop_size, crop_size), len(action_sequence), enc_id=2).to(device)
+                critic = SACCriticSimFC((obs_channel, crop_size, crop_size), len(action_sequence), enc_id=2).to(device)
             elif model == 'cnn_2':
                 actor = SACGaussianPolicy2((obs_channel, crop_size, crop_size), len(action_sequence)).to(device)
                 critic = SACCritic2((obs_channel, crop_size, crop_size), len(action_sequence)).to(device)
@@ -295,14 +298,19 @@ def createAgent(test=False):
                 critic = EquivariantSACCriticDihedralWithNonEquiHead((obs_channel, crop_size, crop_size), len(action_sequence), n_hidden=n_hidden, initialize=initialize, N=equi_n).to(device)
             elif model == 'sen_fc':
                 actor = EquivariantSACActorDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
-                                                                  n_hidden=n_hidden, initialize=initialize, N=equi_n, enc='fc').to(device)
+                                                                  n_hidden=64, initialize=initialize, N=equi_n, enc='fc').to(device)
                 critic = EquivariantSACCriticDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
-                                                                    n_hidden=n_hidden, initialize=initialize, N=equi_n, enc='fc').to(device)
+                                                                    n_hidden=64, initialize=initialize, N=equi_n, enc='fc').to(device)
+            elif model == 'sen_fc_2':
+                actor = EquivariantSACActorDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
+                                                                  n_hidden=32, initialize=initialize, N=equi_n, enc='fc_2').to(device)
+                critic = EquivariantSACCriticDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
+                                                                    n_hidden=32, initialize=initialize, N=equi_n, enc='fc_2').to(device)
             elif model == 'sen_conv':
                 actor = EquivariantSACActorDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
-                                                                  n_hidden=n_hidden, initialize=initialize, N=equi_n, enc='conv').to(device)
+                                                                  n_hidden=64, initialize=initialize, N=equi_n, enc='conv').to(device)
                 critic = EquivariantSACCriticDihedralWithNonEquiEnc((obs_channel, crop_size, crop_size), len(action_sequence),
-                                                                    n_hidden=n_hidden, initialize=initialize, N=equi_n, enc='conv').to(device)
+                                                                    n_hidden=64, initialize=initialize, N=equi_n, enc='conv').to(device)
         # vector observation
         elif obs_type == 'vec':
             if model == 'cnn':
