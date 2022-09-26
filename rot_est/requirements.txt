@@ -1,0 +1,13 @@
+attrdict==2.0.1
+GitPython==3.1.27
+numpy==1.21.2
+pybullet==3.2.1
+scikit-image==0.19.2
+scipy==1.8.0
+tqdm==4.31.1
+dill==0.3.4
+more-itertools==8.12.0
+opencv-python==4.6.0.66
+scikit-learn==1.0.2
+e2cnn==0.2.1
+matplotlib
