@@ -6,6 +6,7 @@ from tqdm import tqdm
 
 sys.path.append('/')
 sys.path.append('../..')
+sys.path.append('..')
 from rl_manipulation.utils.parameters import *
 from rl_manipulation.storage.buffer import QLearningBufferExpert, QLearningBuffer
 from rl_manipulation.storage.per_buffer import PrioritizedQLearningBuffer, EXPERT, NORMAL
