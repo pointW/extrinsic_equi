@@ -20,14 +20,14 @@ Please skip if you already installed the required packages when running the code
 `python collect_data.py --corrupt=side`
 ### Selecting Symmetry Corruption
 replace `side` with any of
-`'', 'grid', 'occlusion', 'random_light_color', 'light_effect', 'two_light_color', 'two_specular', 'squeeze', 'reflect', 'condition_reverse', 'side', 'side,grid', 'side,light_effect', 'side,squeeze', 'side,reflect'`
+` ` (leave empty for no corruption), `grid`, `occlusion`, `random_light_color`, `light_effect`, `two_light_color`, `two_specular`, `squeeze`, `reflect`, `condition_reverse`, `side`, `side,grid`, `side,light_effect`, `side,squeeze`, `side,reflect`
 for other symmetry corruptions.
 
 ## Training
 ` python main.py --device=cuda:1 --aug=t --model=equi_c --n_data=100 --corrupt=side`
 ### Selecting Symmetry Corruption
 replace `side` with any of
-`'', 'grid', 'occlusion', 'random_light_color', 'light_effect', 'two_light_color', 'two_specular', 'squeeze', 'reflect', 'condition_reverse', 'side', 'side,grid', 'side,light_effect', 'side,squeeze', 'side,reflect'`
+` ` (leave empty for no corruption), `grid`, `occlusion`, `random_light_color`, `light_effect`, `two_light_color`, `two_specular`, `squeeze`, `reflect`, `condition_reverse`, `side`, `side,grid`, `side,light_effect`, `side,squeeze`, `side,reflect`
 for other symmetry corruptions.
 ### Running The CNN baseline
 replace `equi_c` with `cnn_sim`
