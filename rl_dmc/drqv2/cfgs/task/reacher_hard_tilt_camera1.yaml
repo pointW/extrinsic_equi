@@ -1,0 +1,5 @@
+defaults:
+  - half_medium
+  - _self_
+
+task_name: reacher_hard_tilt_camera1

@@ -1,0 +1,5 @@
+defaults:
+  - half_medium
+  - _self_
+
+task_name: acrobot_swingup_roll_camera1

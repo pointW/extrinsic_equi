@@ -1,0 +1,3 @@
+# num_train_frames: 1100000
+num_train_frames: 600000
+stddev_schedule: "linear(1.0,0.1,100000)"
