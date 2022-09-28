@@ -1,0 +1,5 @@
+defaults:
+  - half_easy
+  - _self_
+
+task_name: cup_catch_roll_camera1

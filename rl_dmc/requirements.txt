@@ -1,0 +1,21 @@
+termcolor
+numpy
+torch
+--extra-index-url https://download.pytorch.org/whl/cu116
+torchvision
+--extra-index-url https://download.pytorch.org/whl/cu116
+term
+tensorboard
+hydra-core==1.1.0
+hydra-submitit-launcher
+pandas
+matplotlib
+protobuf==3.20.*
+opencv-python
+imageio
+imageio-ffmpeg
+escnn
+torchinfo
+jupyterlab
+ipdb
+seaborn

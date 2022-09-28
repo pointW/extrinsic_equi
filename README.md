@@ -6,3 +6,5 @@ This repository is for ICLR2023 review only. Do not distribute. Please delete th
 The folder [rot_est](rot_est/README.md) contains the code for the supervised rotation estimation experiment.
 
 The folder [rl_manipulation](rl_manipulation/README.md) contains the code the for reinforcement learning in robotic manipulation experiment.
+
+The folder [rl_dmc](rl_dmc/README.md) contains the code the for reinforcement learning in DeepMind Control Suite experiment.
