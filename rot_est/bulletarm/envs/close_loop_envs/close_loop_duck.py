@@ -211,7 +211,7 @@ class CloseLoopDuckEnv(CloseLoopEnv):
 
     if 'condition_reverse' in self.corrupt:
       if self.duck1_pos_base[1] < self.duck2_pos_base[1]:
-        idx = 7-idx
+        idx = (8-idx)%8
     return idx, None, obs
 
   # # D4 fixed gripper
